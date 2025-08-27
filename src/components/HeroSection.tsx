@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Calendar, Heart, Sparkles } from 'lucide-react';
-import bannerImg from '../assets/01.webp';
-import bannerRoundImg from '../assets/04.webp';
+import bannerImg from '../assets/04.webp';
+import bannerRoundImg from '../assets/01.webp';
 
 
 const HeroSection: React.FC = () => {
@@ -50,7 +50,7 @@ const HeroSection: React.FC = () => {
           alt="Akshara & Pradheesh Wedding Banner" 
           className="w-full h-full object-cover"
         />
-        <div className="absolute inset-0 bg-gradient-to-br from-amber-900/70 via-orange-900/60 to-yellow-900/70"></div>
+        <div className="absolute inset-0 bg-gradient-to-br from-amber-900/70 via-orange-900/60 to-yellow-900/70 opacity-5"></div>
         <div className="absolute inset-0 bg-black/20"></div>
       </div>
       

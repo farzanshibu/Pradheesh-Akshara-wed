@@ -11,63 +11,37 @@ const GuestWishes: React.FC = () => {
   });
   const [showForm, setShowForm] = useState(false);
 
-  // Sample wishes - in a real app, these would come from a database
-  const wishes = [
-    {
-      id: 1,
-      name: "Anjana & Family",
-      message: "Wishing you both a lifetime of love, happiness, and beautiful memories together! So excited to celebrate with you! 💕",
-      relationship: "Family Friend",
-      date: "2024-12-20"
-    },
-    {
-      id: 2,
-      name: "Rajesh Uncle",
-      message: "May your marriage be filled with all the right ingredients: a heap of love, a dash of humor, a touch of romance, and a spoonful of understanding. Congratulations!",
-      relationship: "Family",
-      date: "2024-12-19"
-    },
-    {
-      id: 3,
-      name: "Priya & Arun",
-      message: "From the moment we saw you two together, we knew it was meant to be! Wishing you endless love and joy. Can't wait for the big day! ✨",
-      relationship: "Friends",
-      date: "2024-12-18"
-    },
-    {
-      id: 4,
-      name: "Meera Aunty",
-      message: "Seeing you both so happy together brings such joy to our hearts. May God bless your union with love, peace, and prosperity. Much love! 🙏",
-      relationship: "Family Friend",
-      date: "2024-12-17"
-    },
-    {
-      id: 5,
-      name: "College Gang",
-      message: "From late-night study sessions to wedding planning - we've seen it all! So proud of you both and excited to party at your wedding! 🎉",
-      relationship: "College Friends",
-      date: "2024-12-16"
-    },
-    {
-      id: 6,
-      name: "Grandma",
-      message: "My dear children, may your love story be as beautiful as the sunrise and as eternal as the stars. Blessing you with all my love. 💝",
-      relationship: "Family",
-      date: "2024-12-15"
+  // Show only wishes typed by visitors. Persist in localStorage under 'guest_wishes'.
+  type Wish = { id: number; name: string; message: string; relationship?: string; date: string };
+  const [wishesState, setWishesState] = useState<Wish[]>(() => {
+    try {
+      const raw = localStorage.getItem('guest_wishes');
+      return raw ? JSON.parse(raw) as Wish[] : [];
+    } catch {
+      return [];
     }
-  ];
+  });
 
   const wishesPerPage = 3;
-  const totalPages = Math.ceil(wishes.length / wishesPerPage);
-  const currentWishes = wishes.slice(currentPage * wishesPerPage, (currentPage + 1) * wishesPerPage);
+  const totalPages = Math.max(1, Math.ceil(wishesState.length / wishesPerPage));
+  const currentWishes = wishesState.slice(currentPage * wishesPerPage, (currentPage + 1) * wishesPerPage);
 
   const handleSubmitWish = (e: React.FormEvent) => {
     e.preventDefault();
-    // In a real app, this would save to a database
-    console.log('New wish submitted:', newWish);
+    // Save typed wish to local state + localStorage
+    const next: Wish = {
+      id: Date.now(),
+      name: newWish.name || 'Anonymous',
+      message: newWish.message,
+      relationship: newWish.relationship || '',
+      date: new Date().toISOString().slice(0,10)
+    };
+    const updated = [next, ...wishesState];
+    setWishesState(updated);
+  try { localStorage.setItem('guest_wishes', JSON.stringify(updated)); } catch { /* ignore storage errors */ }
     setNewWish({ name: '', message: '', relationship: '' });
     setShowForm(false);
-    // Show success message or refresh wishes
+    setCurrentPage(0);
   };
 
   const nextPage = () => {

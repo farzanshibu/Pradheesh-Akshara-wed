@@ -157,9 +157,9 @@ const EventDetails: React.FC = () => {
         >
           {/* Try to locate a QR image in the assets folder (optional) */}
           {/** If you have a file named like qr.png / qrcode.jpg in src/assets it will be shown below. */}
-          <div className="bg-white/80 backdrop-blur-md rounded-2xl p-8 shadow-xl border border-amber-200/50">
+          {/* <div className="bg-white/80 backdrop-blur-md rounded-2xl p-8 shadow-xl border border-amber-200/50"> */}
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+            {/* <div className="grid grid-cols-1 md:grid-cols-2 gap-8"> */}
               {/* Dress Code */}
               {/* <div>
                 <h3 className="text-2xl font-bold text-gray-800 mb-6 flex items-center">
@@ -188,7 +188,7 @@ const EventDetails: React.FC = () => {
               </div> */}
 
               {/* Special Notes */}
-              <div>
+              {/* <div>
                 <h3 className="text-2xl font-bold text-gray-800 mb-6 flex items-center">
                   <Users className="h-6 w-6 text-amber-600 mr-2" />
                   Special Notes
@@ -215,9 +215,9 @@ const EventDetails: React.FC = () => {
                     </p>
                   </div>
                 </div>
-              </div>
-            </div>
-          </div>
+              </div> */}
+            {/* </div> */}
+          {/* </div> */}
         </motion.div>
       </div>
     </section>
