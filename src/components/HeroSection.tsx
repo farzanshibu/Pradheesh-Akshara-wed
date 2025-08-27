@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Calendar, Heart, Sparkles, Camera } from 'lucide-react';
+import { Calendar, Sparkles, Camera } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import bannerImg from '../assets/04.webp';
-import bannerRoundImg from '../assets/01.webp';
+import bannerRoundImg from '../assets/19.webp';
 
 
 const HeroSection: React.FC = () => {
@@ -271,17 +272,19 @@ const HeroSection: React.FC = () => {
             Until We Say "I Do" 💕
           </motion.p>
           <div className="mt-4">
-            <motion.a
-              href="/#gallery"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center space-x-3 px-5 py-3 bg-gradient-to-r from-pink-500 to-orange-500 text-white font-semibold rounded-full shadow-lg hover:shadow-xl transition-all duration-300"
+            <motion.div
+              className="inline-flex"
               whileHover={{ scale: 1.03, y: -3 }}
               whileTap={{ scale: 0.97 }}
             >
-              <Camera className="h-5 w-5" />
-              <span>See Live Wedding Photos</span>
-            </motion.a>
+              <Link
+                to="/gallery"
+                className="inline-flex items-center space-x-3 px-5 py-3 bg-gradient-to-r from-pink-500 to-orange-500 text-white font-semibold rounded-full shadow-lg hover:shadow-xl transition-all duration-300"
+              >
+                <Camera className="h-5 w-5" />
+                <span>See Live Wedding Photos</span>
+              </Link>
+            </motion.div>
             <p className="text-sm text-white/80 mt-3">Coming soon — live wedding photos will appear here.</p>
           </div>
         </motion.div>

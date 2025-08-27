@@ -1,8 +1,7 @@
-import React from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
-import { motion } from 'framer-motion';
 import HomePage from './pages/HomePage';
 import PhotoUpload from './pages/PhotoUpload';
+import GalleryPage from './pages/GalleryPage';
 import './App.css';
 
 function App() {
@@ -11,6 +10,7 @@ function App() {
       <div className="App">
         <Routes>
           <Route path="/" element={<HomePage />} />
+          <Route path="/gallery" element={<GalleryPage />} />
           <Route path="/upload-photos" element={<PhotoUpload />} />
         </Routes>
       </div>
