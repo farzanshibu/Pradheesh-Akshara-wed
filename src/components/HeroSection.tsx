@@ -389,7 +389,6 @@ const HeroSection: React.FC = () => {
             >
               <Link
                 to="/gallery"
-                target='_blank'
                 className="inline-flex items-center space-x-3 px-5 py-3 bg-gradient-to-r from-pink-500 to-orange-500 text-white font-semibold rounded-full shadow-lg hover:shadow-xl transition-all duration-300"
               >
                 <Camera className="h-5 w-5" />
