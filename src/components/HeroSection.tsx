@@ -88,8 +88,7 @@ Sunday • 10:00 AM - 11:00 AM
 
 📍 GURUKRIPA Auditorium, Peruntattil
 
-Check out our wedding invite & watch live photos here:
-https://pradheesh-akshara-wed.vercel.app/`;
+Check out our wedding invite & watch live photos here:`;
       imageUrl = bannerImg;
     } else {
       shareText = `💌 You're Invited! 💌
@@ -99,8 +98,7 @@ Monday • 4:00 PM onwards
 
 📍 A.H. Palace, Mankara, Palakkad
 
-Check out our wedding invite & watch live photos here:
-https://pradheesh-akshara-wed.vercel.app/`;
+Check out our wedding invite & watch live photos here:`;
       imageUrl = receptionBannerImg;
     }
     
