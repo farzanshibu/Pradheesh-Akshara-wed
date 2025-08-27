@@ -1,7 +1,4 @@
 @echo off
-REM Deploy Vite build to gh-pages branch
-set -e
-
 REM Build the project
 npm run build
 
