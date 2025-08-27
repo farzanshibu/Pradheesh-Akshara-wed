@@ -2,10 +2,100 @@ import React from 'react';
 import { motion } from 'framer-motion';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
+import GoogleDriveGallery from '../components/GoogleDriveGallery';
 import { Share2, DownloadCloud } from 'lucide-react';
+
+// Wrapper component for Wedding Gallery
+const WeddingGallery: React.FC<{ onPhotosAvailable: (hasPhotos: boolean) => void }> = ({ onPhotosAvailable }) => {
+  const [photos, setPhotos] = React.useState<any[]>([]);
+  const [loading, setLoading] = React.useState(true);
+
+  React.useEffect(() => {
+    const checkWeddingPhotos = async () => {
+      try {
+        const API_KEY = 'AIzaSyBNn-27uk3XXKmsj8PtZJwWc7ZBcz-ouRo';
+        const FOLDER_ID = '1RE_611tbYddCK2uQoTDKl3KSY85RLbTU';
+        const response = await fetch(
+          `https://www.googleapis.com/drive/v3/files?q='${FOLDER_ID}'+in+parents+and+mimeType+contains+'image/'&fields=files(id,name)&key=${API_KEY}`
+        );
+        const data = await response.json();
+        const hasPhotos = data.files && data.files.length > 0;
+        setPhotos(data.files || []);
+        onPhotosAvailable(hasPhotos);
+      } catch (error) {
+        console.error('Error checking wedding photos:', error);
+        onPhotosAvailable(false);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    checkWeddingPhotos();
+  }, [onPhotosAvailable]);
+
+  if (loading || photos.length === 0) return null;
+
+  return (
+    <GoogleDriveGallery
+      className="mb-8"
+      folderId="1RE_611tbYddCK2uQoTDKl3KSY85RLbTU"
+      title="Live Wedding Gallery"
+      description="Fresh photos from our special day!"
+      gradientFrom="purple-500"
+      gradientTo="pink-500"
+      textColor="text-purple-700"
+    />
+  );
+};
+
+// Wrapper component for Reception Gallery
+const ReceptionGallery: React.FC<{ onPhotosAvailable: (hasPhotos: boolean) => void }> = ({ onPhotosAvailable }) => {
+  const [photos, setPhotos] = React.useState<any[]>([]);
+  const [loading, setLoading] = React.useState(true);
+
+  React.useEffect(() => {
+    const checkReceptionPhotos = async () => {
+      try {
+        const API_KEY = 'AIzaSyBNn-27uk3XXKmsj8PtZJwWc7ZBcz-ouRo';
+        const FOLDER_ID = '1W3_aUFcDsB8HRodZ7_dZPDsqQ3zM81sY';
+        const response = await fetch(
+          `https://www.googleapis.com/drive/v3/files?q='${FOLDER_ID}'+in+parents+and+mimeType+contains+'image/'&fields=files(id,name)&key=${API_KEY}`
+        );
+        const data = await response.json();
+        const hasPhotos = data.files && data.files.length > 0;
+        setPhotos(data.files || []);
+        onPhotosAvailable(hasPhotos);
+      } catch (error) {
+        console.error('Error checking reception photos:', error);
+        onPhotosAvailable(false);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    checkReceptionPhotos();
+  }, [onPhotosAvailable]);
+
+  if (loading || photos.length === 0) return null;
+
+  return (
+    <GoogleDriveGallery
+      className="mb-8"
+      folderId="1W3_aUFcDsB8HRodZ7_dZPDsqQ3zM81sY"
+      title="Live Reception Gallery"
+      description="Beautiful moments from our reception!"
+      gradientFrom="emerald-400"
+      gradientTo="green-600"
+      textColor="text-emerald-800"
+    />
+  );
+};
 
 // Grid that shows only the "now" photos (01..20) and a per-photo share button
 const NowPhotosGrid: React.FC = () => {
+  const [hasWeddingPhotos, setHasWeddingPhotos] = React.useState(false);
+  const [hasReceptionPhotos, setHasReceptionPhotos] = React.useState(false);
+  
   // load assets via Vite glob
   const assets = import.meta.glob('../assets/*.{jpg,jpeg,png,webp}', { as: 'url', eager: true }) as Record<string, string>;
 
@@ -97,19 +187,31 @@ const NowPhotosGrid: React.FC = () => {
 
   return (
     <div>
-      {/* Wedding Photos Coming Soon (top) */}
-      <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} className="mb-6 p-6 rounded-lg bg-gradient-to-r from-yellow-50 to-amber-50 text-center border border-dashed border-gray-200">
+      {/* Wedding Photos Coming Soon (hide when photos are available) */}
+      <motion.div 
+        initial={{ opacity: 0, y: 6 }} 
+        animate={{ opacity: hasWeddingPhotos ? 0 : 1, y: 0 }} 
+        className={`mb-6 p-6 rounded-lg bg-gradient-to-r from-yellow-50 to-amber-50 text-center border border-dashed border-gray-200 transition-opacity duration-500 ${
+          hasWeddingPhotos ? 'hidden' : 'block'
+        }`}
+      >
         <h4 className="text-xl font-semibold mb-2 inline-block px-3 py-1 rounded-lg bg-gradient-to-r from-pink-500 to-rose-500 text-white">Wedding Photos — Coming Soon</h4>
         <p className="text-rose-700 mt-3">Live uploads and the complete wedding gallery will appear here on the wedding day.</p>
 
         {/* Wedding countdown */}
         <div className="mt-4 flex items-center justify-center space-x-3">
-          {[{ label: 'Days', value: weddingLeft.days }, { label: 'Hours', value: weddingLeft.hours }, { label: 'Minutes', value: weddingLeft.minutes }, { label: 'Seconds', value: weddingLeft.seconds }].map((it) => (
-            <div key={it.label} className="bg-white/90 text-rose-700 px-3 py-2 rounded-md shadow-sm">
-              <div className="font-bold text-lg">{String(it.value).padStart(2, '0')}</div>
-              <div className="text-xs">{it.label}</div>
+          {weddingLeft.days > 0 || weddingLeft.hours > 0 || weddingLeft.minutes > 0 || weddingLeft.seconds > 0 ? (
+            [{label: 'Days', value: weddingLeft.days}, {label: 'Hours', value: weddingLeft.hours}, {label: 'Minutes', value: weddingLeft.minutes}, {label: 'Seconds', value: weddingLeft.seconds}].map((it) => (
+              <div key={it.label} className="bg-white/90 text-rose-700 px-3 py-2 rounded-md shadow-sm">
+                <div className="font-bold text-lg">{String(it.value).padStart(2, '0')}</div>
+                <div className="text-xs">{it.label}</div>
+              </div>
+            ))
+          ) : (
+            <div className="text-rose-700 font-semibold text-lg">
+              🎉 The Wedding Day is Here! 🎉
             </div>
-          ))}
+          )}
         </div>
 
         {/* Wedding thumbnails (loading placeholders) */}
@@ -129,19 +231,30 @@ const NowPhotosGrid: React.FC = () => {
         </div>
       </motion.div>
 
-      {/* Reception section */}
-      <div className="mb-8 text-center p-4 rounded-md bg-white/30">
+      {/* Wedding Gallery - shows when photos are available */}
+      <WeddingGallery onPhotosAvailable={setHasWeddingPhotos} />
+
+      {/* Reception section - hide timer when photos are available */}
+      <div className={`mb-8 text-center p-4 rounded-md bg-white/30 transition-opacity duration-500 ${
+        hasReceptionPhotos ? 'hidden' : 'block'
+      }`}>
         <h3 className="text-xl font-semibold mb-2 inline-block px-3 py-1 rounded-md bg-gradient-to-r from-emerald-400 to-green-600 text-white">Reception</h3>
         <p className="text-emerald-800 text-sm">Live uploads and the reception gallery will appear here during and after the reception.</p>
 
         {/* Reception countdown */}
         <div className="mt-4 flex items-center justify-center space-x-3">
-          {[{ label: 'Days', value: receptionLeft.days }, { label: 'Hours', value: receptionLeft.hours }, { label: 'Minutes', value: receptionLeft.minutes }, { label: 'Seconds', value: receptionLeft.seconds }].map((it) => (
-            <div key={it.label} className="bg-white/90 text-emerald-800 px-3 py-2 rounded-md shadow-sm">
-              <div className="font-bold text-lg">{String(it.value).padStart(2, '0')}</div>
-              <div className="text-xs">{it.label}</div>
+          {receptionLeft.days > 0 || receptionLeft.hours > 0 || receptionLeft.minutes > 0 || receptionLeft.seconds > 0 ? (
+            [{label: 'Days', value: receptionLeft.days}, {label: 'Hours', value: receptionLeft.hours}, {label: 'Minutes', value: receptionLeft.minutes}, {label: 'Seconds', value: receptionLeft.seconds}].map((it) => (
+              <div key={it.label} className="bg-white/90 text-emerald-800 px-3 py-2 rounded-md shadow-sm">
+                <div className="font-bold text-lg">{String(it.value).padStart(2, '0')}</div>
+                <div className="text-xs">{it.label}</div>
+              </div>
+            ))
+          ) : (
+            <div className="text-emerald-800 font-semibold text-lg">
+              🎉 Reception Time is Here! 🎉
             </div>
-          ))}
+          )}
         </div>
 
         <div className="mt-4 flex justify-center space-x-3">
@@ -160,10 +273,22 @@ const NowPhotosGrid: React.FC = () => {
         </div>
       </div>
 
-      {/* Save the Date section with Download All */}
+      {/* Reception Gallery - shows when photos are available */}
+      <ReceptionGallery onPhotosAvailable={setHasReceptionPhotos} />
+
+      {/* Save the Date section with Download All and Timer */}
       <div className="mb-8 text-center">
         <h3 className="text-2xl md:text-3xl font-bold mb-2 inline-block px-3 py-1 rounded-lg bg-gradient-to-r from-amber-400 to-orange-500 text-white">Save the Date</h3>
         <p className="text-orange-700 mb-4">These are our Save-the-Date photos — download and share with loved ones.</p>
+        
+        {/* Save the Date countdown */}
+        <div className="mb-6">
+          <p className="text-orange-800 font-semibold mb-3">Time until our special day:</p>
+          <div className="flex items-center justify-center space-x-3">
+        
+          </div>
+        </div>
+        
         <div className="flex items-center justify-center">
           <button
             onClick={async () => {

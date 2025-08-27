@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Calendar, Sparkles, Camera } from 'lucide-react';
+import { Calendar, Sparkles, Camera, MapPin } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import bannerImg from '../assets/04.webp';
 import bannerRoundImg from '../assets/19.webp';
+import receptionBannerImg from '../assets/05.webp';
+import receptionRoundImg from '../assets/18.webp';
 
 
 const HeroSection: React.FC = () => {
@@ -14,24 +16,55 @@ const HeroSection: React.FC = () => {
     seconds: 0
   });
 
+  const [receptionTimeLeft, setReceptionTimeLeft] = useState({
+    days: 0,
+    hours: 0,
+    minutes: 0,
+    seconds: 0
+  });
+
+  const [currentCard, setCurrentCard] = useState(0); // 0 for wedding, 1 for reception
+
   useEffect(() => {
     const weddingDate = new Date('2025-08-31T10:00:00');
+    const receptionDate = new Date('2025-09-01T16:00:00');
     
     const timer = setInterval(() => {
       const now = new Date();
-      const difference = weddingDate.getTime() - now.getTime();
       
-      if (difference > 0) {
+      // Wedding countdown
+      const weddingDifference = weddingDate.getTime() - now.getTime();
+      if (weddingDifference > 0) {
         setTimeLeft({
-          days: Math.floor(difference / (1000 * 60 * 60 * 24)),
-          hours: Math.floor((difference / (1000 * 60 * 60)) % 24),
-          minutes: Math.floor((difference / 1000 / 60) % 60),
-          seconds: Math.floor((difference / 1000) % 60)
+          days: Math.floor(weddingDifference / (1000 * 60 * 60 * 24)),
+          hours: Math.floor((weddingDifference / (1000 * 60 * 60)) % 24),
+          minutes: Math.floor((weddingDifference / 1000 / 60) % 60),
+          seconds: Math.floor((weddingDifference / 1000) % 60)
+        });
+      }
+      
+      // Reception countdown
+      const receptionDifference = receptionDate.getTime() - now.getTime();
+      if (receptionDifference > 0) {
+        setReceptionTimeLeft({
+          days: Math.floor(receptionDifference / (1000 * 60 * 60 * 24)),
+          hours: Math.floor((receptionDifference / (1000 * 60 * 60)) % 24),
+          minutes: Math.floor((receptionDifference / 1000 / 60) % 60),
+          seconds: Math.floor((receptionDifference / 1000) % 60)
         });
       }
     }, 1000);
 
     return () => clearInterval(timer);
+  }, []);
+
+  // Auto-scroll between cards every 5 seconds
+  useEffect(() => {
+    const autoScroll = setInterval(() => {
+      setCurrentCard(prev => prev === 0 ? 1 : 0);
+    }, 15000);
+
+    return () => clearInterval(autoScroll);
   }, []);
 
   const [scrollY, setScrollY] = useState(0);
@@ -42,16 +75,62 @@ const HeroSection: React.FC = () => {
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
+  // Card data for wedding and reception
+  const cardData = [
+    {
+      id: 0,
+      type: 'wedding',
+      bannerImg: bannerImg,
+      roundImg: bannerRoundImg,
+      quote: "I have found the one whom my soul loves",
+      names: "Akshara & Pradheesh",
+      subtitle: "Are Getting Married!",
+      date: "August 31, 2025",
+      time: "Sunday • 10:00 AM - 11:00 AM",
+      venue: "GURUKRIPA Auditorium, Peruntattil",
+      mapQuery: "GURUKRIPA+Auditorium,+Peruntattil",
+      timeLeft: timeLeft,
+      message: "Until We Say \"I Do\" 💕",
+      linkText: "See Live Wedding Photos",
+      linkSubtext: "Coming soon — live wedding photos will appear here.",
+      gradient: "from-amber-900/70 via-orange-900/60 to-yellow-900/70"
+    },
+    {
+      id: 1,
+      type: 'reception',
+      bannerImg: receptionBannerImg,
+      roundImg: receptionRoundImg,
+      quote: "Celebrate with us as we start our new journey together",
+      names: "Pradheesh & Akshara",
+      subtitle: "Wedding Reception!",
+      date: "September 1, 2025",
+      time: "Monday • 4:00 PM onwards",
+      venue: "A.H. Palace, Mankara, Palakkad",
+      mapQuery: "A.H.+Palace+Mankara+Palakkad",
+      timeLeft: receptionTimeLeft,
+      message: "Until We Celebrate Together 🎉",
+      linkText: "See Live Reception Photos",
+      linkSubtext: "Join us for an evening of joy and celebration.",
+      gradient: "from-emerald-900/70 via-green-900/60 to-teal-900/70"
+    }
+  ];
+
+  const currentCardData = cardData[currentCard];
+
   return (
     <section id="home" className="min-h-screen relative overflow-hidden">
       {/* Full-width Banner Image */}
       <div className="absolute inset-0">
-        <img 
-          src={bannerImg}
-          alt="Akshara & Pradheesh Wedding Banner" 
+        <motion.img 
+          key={currentCard}
+          src={currentCardData.bannerImg}
+          alt={`${currentCardData.names} ${currentCardData.type} Banner`} 
           className="w-full h-full object-cover"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.8 }}
         />
-        <div className="absolute inset-0 bg-gradient-to-br from-amber-900/70 via-orange-900/60 to-yellow-900/70 opacity-5"></div>
+        <div className={`absolute inset-0 bg-gradient-to-br ${currentCardData.gradient} opacity-5`}></div>
         <div className="absolute inset-0 bg-black/20"></div>
       </div>
       
@@ -156,23 +235,27 @@ const HeroSection: React.FC = () => {
 
         <div className="container mx-auto px-4 text-center" style={{ transform: `translateY(${scrollY * 0.1}px)` }}>
         <motion.div
+          key={currentCard}
           initial={{ scale: 0.8, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
           transition={{ duration: 0.8, delay: 0.2 }}
             className="bg-white/10 backdrop-blur-md rounded-2xl md:rounded-3xl p-6 md:p-12 shadow-2xl max-w-4xl mx-auto border border-white/20"
         >
-          {/* Couple Photo Placeholder */}
+          {/* Couple Photo */}
           <motion.div
               className="w-40 h-40 md:w-64 md:h-64 mx-auto mb-6 md:mb-8 rounded-full bg-gradient-to-br from-amber-200 to-orange-200 flex items-center justify-center shadow-xl relative overflow-hidden border-4 border-white/30"
             whileHover={{ scale: 1.05, rotate: 5 }}
             whileTap={{ scale: 0.95 }}
             transition={{ type: "spring", stiffness: 300 }}
           >
-            {/* Placeholder for couple photo */}
-            <img 
-                src={bannerRoundImg} 
-              alt="Akshara & Pradheesh" 
+            <motion.img 
+              key={`${currentCard}-round`}
+                src={currentCardData.roundImg} 
+              alt={currentCardData.names} 
               className="w-full h-full object-cover"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ duration: 0.6 }}
             />
               <div className="absolute inset-0 bg-gradient-to-t from-amber-900/30 to-transparent" />
             <motion.div 
@@ -186,16 +269,18 @@ const HeroSection: React.FC = () => {
 
           {/* Quote */}
           <motion.p
+            key={`${currentCard}-quote`}
             initial={{ y: 20, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
             transition={{ delay: 0.5 }}
               className="text-base md:text-xl italic text-white mb-4 md:mb-6 font-serif px-2 drop-shadow-lg"
           >
-            "I have found the one whom my soul loves"
+            "{currentCardData.quote}"
           </motion.p>
 
           {/* Names */}
           <motion.div
+            key={`${currentCard}-names`}
             initial={{ y: 30, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
             transition={{ delay: 0.7 }}
@@ -212,15 +297,16 @@ const HeroSection: React.FC = () => {
               }}
               transition={{ duration: 3, repeat: Infinity }}
             >
-              Akshara & Pradheesh
+              {currentCardData.names}
             </motion.h1>
               <p className="text-lg md:text-2xl text-white font-light drop-shadow-lg">
-              Are Getting Married!
+              {currentCardData.subtitle}
             </p>
           </motion.div>
 
-          {/* Wedding Date */}
+          {/* Event Date */}
           <motion.div
+            key={`${currentCard}-date`}
             initial={{ y: 40, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
             transition={{ delay: 0.9 }}
@@ -228,24 +314,46 @@ const HeroSection: React.FC = () => {
           >
               <div className="flex items-center justify-center space-x-2 text-xl md:text-3xl font-semibold text-white mb-2 drop-shadow-lg">
                 <Calendar className="h-6 w-6 md:h-8 md:w-8 text-amber-300" />
-              <span>August 31, 2025</span>
+              <span>{currentCardData.date}</span>
             </div>
-              <p className="text-base md:text-lg text-white/90 drop-shadow-lg">Sunday • 10:00 AM - 11:00 AM</p>
-              <p className="text-base md:text-lg text-white/90 drop-shadow-lg">GURUKRIPA Auditorium, Peruntattil</p>
+              <p className="text-base md:text-lg text-white/90 drop-shadow-lg">{currentCardData.time}</p>
+              <p className="text-base md:text-lg text-white/90 drop-shadow-lg">{currentCardData.venue}</p>
+              
+              {/* Map Button */}
+              <motion.div
+                className="mt-3"
+                initial={{ y: 20, opacity: 0 }}
+                animate={{ y: 0, opacity: 1 }}
+                transition={{ delay: 1.0 }}
+              >
+                <motion.button
+                  onClick={() => {
+                    const mapUrl = `https://maps.google.com/?q=${currentCardData.mapQuery}`;
+                    window.open(mapUrl, '_blank');
+                  }}
+                  className="inline-flex items-center space-x-2 px-4 py-2 bg-white/20 backdrop-blur-sm text-white rounded-full shadow-md hover:bg-white/30 transition-all duration-300 border border-white/30"
+                  whileHover={{ scale: 1.05, y: -2 }}
+                  whileTap={{ scale: 0.95 }}
+                >
+                  <MapPin className="h-4 w-4" />
+                  <span className="text-sm font-medium">View on Map</span>
+                </motion.button>
+              </motion.div>
           </motion.div>
 
           {/* Countdown Timer */}
           <motion.div
+            key={`${currentCard}-timer`}
             initial={{ scale: 0.9, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
             transition={{ delay: 1.1 }}
             className="grid grid-cols-4 gap-2 md:gap-4 max-w-sm md:max-w-md mx-auto"
           >
             {[
-              { label: 'Days', value: timeLeft.days },
-              { label: 'Hours', value: timeLeft.hours },
-              { label: 'Minutes', value: timeLeft.minutes },
-              { label: 'Seconds', value: timeLeft.seconds }
+              { label: 'Days', value: currentCardData.timeLeft.days },
+              { label: 'Hours', value: currentCardData.timeLeft.hours },
+              { label: 'Minutes', value: currentCardData.timeLeft.minutes },
+              { label: 'Seconds', value: currentCardData.timeLeft.seconds }
             ].map((item) => (
               <motion.div
                 key={item.label}
@@ -264,13 +372,15 @@ const HeroSection: React.FC = () => {
           </motion.div>
 
           <motion.p
+            key={`${currentCard}-message`}
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ delay: 1.3 }}
               className="mt-4 md:mt-6 text-base md:text-lg text-white/90 font-medium drop-shadow-lg"
           >
-            Until We Say "I Do" 💕
+            {currentCardData.message}
           </motion.p>
+          
           <div className="mt-4">
             <motion.div
               className="inline-flex"
@@ -279,13 +389,28 @@ const HeroSection: React.FC = () => {
             >
               <Link
                 to="/gallery"
+                target='_blank'
                 className="inline-flex items-center space-x-3 px-5 py-3 bg-gradient-to-r from-pink-500 to-orange-500 text-white font-semibold rounded-full shadow-lg hover:shadow-xl transition-all duration-300"
               >
                 <Camera className="h-5 w-5" />
-                <span>See Live Wedding Photos</span>
+                <span>{currentCardData.linkText}</span>
               </Link>
             </motion.div>
-            <p className="text-sm text-white/80 mt-3">Coming soon — live wedding photos will appear here.</p>
+            <p className="text-sm text-white/80 mt-3">{currentCardData.linkSubtext}</p>
+          </div>
+          
+          {/* Card Indicators */}
+          <div className="flex justify-center space-x-2 mt-6">
+            {cardData.map((_, index) => (
+              <motion.div
+                key={index}
+                className={`w-2 h-2 rounded-full transition-all duration-300 cursor-pointer ${
+                  index === currentCard ? 'bg-white' : 'bg-white/50'
+                }`}
+                whileHover={{ scale: 1.2 }}
+                onClick={() => setCurrentCard(index)}
+              />
+            ))}
           </div>
         </motion.div>
         </div>
