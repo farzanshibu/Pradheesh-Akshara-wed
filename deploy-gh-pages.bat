@@ -14,7 +14,7 @@ git add .
 git commit -m "Deploy to GitHub Pages"
 
 REM Add remote and push to gh-pages branch
-git remote add origin https://github.com/Akshara-weds-Pradheesh.git
+git remote add origin https://github.com/VISWAJIT-PS/Pradheesh-Akshara-wed.git
 git push -f origin gh-pages
 
 REM Clean up
