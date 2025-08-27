@@ -4,8 +4,8 @@ import { Calendar, Sparkles, Camera, MapPin, Share2 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import bannerImg from '../assets/04.webp';
 import bannerRoundImg from '../assets/19.webp';
-import receptionBannerImg from '../assets/05.webp';
-import receptionRoundImg from '../assets/18.webp';
+import receptionBannerImg from '../assets/invitation.jpg';
+import receptionRoundImg from '../assets/invitation.jpg';
 
 
 const HeroSection: React.FC = () => {
