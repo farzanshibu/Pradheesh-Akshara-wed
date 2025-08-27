@@ -1,14 +1,14 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import { Heart, MapPin, GraduationCap, Sparkles } from 'lucide-react';
-import Beginning from '../assets/p.jpg';
-import Meeting from '../assets/f.jpg';
-import Closer from '../assets/n.jpg';
-import Milestones from '../assets/m.jpg';
-import Deeper from '../assets/b.jpg';
-import Commitment from '../assets/g.jpg';
-import Planning from '../assets/j.jpg';
-import Wedding from '../assets/14.jpg';
+import Beginning from '../assets/p.webp';
+import Meeting from '../assets/f.webp';
+import Closer from '../assets/n.webp';
+import Milestones from '../assets/m.webp';
+import Deeper from '../assets/b.webp';
+import Commitment from '../assets/g.webp';
+import Planning from '../assets/j.webp';
+import Wedding from '../assets/14.webp';
 
 
 const LoveTimeline: React.FC = () => {

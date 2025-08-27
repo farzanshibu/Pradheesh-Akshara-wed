@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Calendar, Heart, Sparkles } from 'lucide-react';
-import bannerImg from '../assets/01.jpg';
-import bannerRoundImg from '../assets/04.jpg';
+import bannerImg from '../assets/01.webp';
+import bannerRoundImg from '../assets/04.webp';
 
 
 const HeroSection: React.FC = () => {

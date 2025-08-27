@@ -1,7 +1,7 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import { Calendar, Clock, MapPin, Phone, Users, ExternalLink } from 'lucide-react';
-import qrSrc from '../assets/qr.jpg'; // Ensure you have a QR code image in the assets folder
+import qrSrc from '../assets/qr.webp'; // Ensure you have a QR code image in the assets folder
 
 const EventDetails: React.FC = () => {
   const events = [

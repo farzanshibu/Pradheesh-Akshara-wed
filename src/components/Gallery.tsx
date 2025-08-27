@@ -9,7 +9,7 @@ const Gallery: React.FC = () => {
   const [currentAutoIndex, setCurrentAutoIndex] = useState(0);
 
   // Load local assets dynamically (Vite) and build photo lists
-  const assets = import.meta.glob('../assets/*.{jpg,jpeg,png}', { as: 'url', eager: true }) as Record<string, string>;
+  const assets = import.meta.glob('../assets/*.{webp,jpeg,png}', { as: 'url', eager: true }) as Record<string, string>;
 
   const getAsset = (filename: string) => {
     const entry = Object.entries(assets).find(([path]) => path.endsWith(`/${filename}`));
@@ -20,14 +20,14 @@ const Gallery: React.FC = () => {
   const thenNames = Array.from({ length: 16 }, (_, i) => String.fromCharCode('a'.charCodeAt(0) + i));
   const thenPhotos = thenNames.map((name, i) => ({
     id: i + 1,
-    src: getAsset(`${name}.jpg`) || getAsset(`${name}.jpeg`) || '',
+    src: getAsset(`${name}.webp`) || getAsset(`${name}.webp`) || '',
     alt: `Memory ${name.toUpperCase()}`,
     caption: `Beautiful memory 💕`
   }));
 
   // nowPhotos: 01.jpg .. 20.jpg
-  const nowPhotos = Array.from({ length: 20 }, (_, i) => {
-    const filename = String(i + 1).padStart(2, '0') + '.jpg';
+  const nowPhotos = Array.from({ length: 19 }, (_, i) => {
+    const filename = String(i + 1).padStart(2, '0') + '.webp';
     return {
       id: i + 1,
       src: getAsset(filename) || '',
