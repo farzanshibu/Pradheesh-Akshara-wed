@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Calendar, Sparkles, Camera, MapPin } from 'lucide-react';
+import { Calendar, Sparkles, Camera, MapPin, Share2 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import bannerImg from '../assets/04.webp';
 import bannerRoundImg from '../assets/19.webp';
@@ -74,6 +74,49 @@ const HeroSection: React.FC = () => {
     window.addEventListener('scroll', handleScroll);
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
+
+  // Share function for WhatsApp
+  const shareInvitation = (cardType: string) => {
+    let shareText = '';
+    let imageUrl = '';
+    
+    if (cardType === 'wedding') {
+      shareText = `💌 You're Invited! 💌
+We're tying the knot! 💍
+August 31, 2025
+Sunday • 10:00 AM - 11:00 AM
+
+📍 GURUKRIPA Auditorium, Peruntattil
+
+Check out our wedding invite & watch live photos here:
+https://pradheesh-akshara-wed.vercel.app/`;
+      imageUrl = bannerImg;
+    } else {
+      shareText = `💌 You're Invited! 💌
+Join us for our Wedding Reception! 🎉
+September 1, 2025
+Monday • 4:00 PM onwards
+
+📍 A.H. Palace, Mankara, Palakkad
+
+Check out our wedding invite & watch live photos here:
+https://pradheesh-akshara-wed.vercel.app/`;
+      imageUrl = receptionBannerImg;
+    }
+    
+    // For mobile devices, try to use native sharing
+    if (navigator.share) {
+      navigator.share({
+        title: 'Wedding Invitation',
+        text: shareText,
+        url: 'https://pradheesh-akshara-wed.vercel.app/'
+      }).catch(console.error);
+    } else {
+      // Fallback to WhatsApp Web sharing
+      const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(shareText)}`;
+      window.open(whatsappUrl, '_blank');
+    }
+  };
 
   // Card data for wedding and reception
   const cardData = [
@@ -382,19 +425,36 @@ const HeroSection: React.FC = () => {
           </motion.p>
           
           <div className="mt-4">
-            <motion.div
-              className="inline-flex"
-              whileHover={{ scale: 1.03, y: -3 }}
-              whileTap={{ scale: 0.97 }}
-            >
-              <Link
-                to="/gallery"
-                className="inline-flex items-center space-x-3 px-5 py-3 bg-gradient-to-r from-pink-500 to-orange-500 text-white font-semibold rounded-full shadow-lg hover:shadow-xl transition-all duration-300"
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
+              <motion.div
+                className="inline-flex"
+                whileHover={{ scale: 1.03, y: -3 }}
+                whileTap={{ scale: 0.97 }}
               >
-                <Camera className="h-5 w-5" />
-                <span>{currentCardData.linkText}</span>
-              </Link>
-            </motion.div>
+                <Link
+                  to="/gallery"
+                  className="inline-flex items-center space-x-3 px-5 py-3 bg-gradient-to-r from-pink-500 to-orange-500 text-white font-semibold rounded-full shadow-lg hover:shadow-xl transition-all duration-300"
+                >
+                  <Camera className="h-5 w-5" />
+                  <span>{currentCardData.linkText}</span>
+                </Link>
+              </motion.div>
+              
+              {/* Share Button */}
+              <motion.div
+                className="inline-flex"
+                whileHover={{ scale: 1.03, y: -3 }}
+                whileTap={{ scale: 0.97 }}
+              >
+                <button
+                  onClick={() => shareInvitation(currentCardData.type)}
+                  className="inline-flex items-center space-x-3 px-5 py-3 bg-gradient-to-r from-green-500 to-emerald-500 text-white font-semibold rounded-full shadow-lg hover:shadow-xl transition-all duration-300"
+                >
+                  <Share2 className="h-5 w-5" />
+                  <span>Share Invitation</span>
+                </button>
+              </motion.div>
+            </div>
             <p className="text-sm text-white/80 mt-3">{currentCardData.linkSubtext}</p>
           </div>
           
