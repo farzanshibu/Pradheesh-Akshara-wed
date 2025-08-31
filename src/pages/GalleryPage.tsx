@@ -38,7 +38,7 @@ const addToRequestQueue = (request: () => Promise<void>) => {
 const ImageModal: React.FC<{
   isOpen: boolean;
   onClose: () => void;
-  photos: Array<{ id: number; src: string; alt: string; name?: string; fullSrc?: string; download?: string }>;
+  photos: Array<{ id: number; src: string; alt: string; name: string; fullSrc: string; download: string }>;
   selectedIndex: number;
   onNavigate: (index: number) => void;
 }> = ({ isOpen, onClose, photos, selectedIndex, onNavigate }) => {
@@ -71,23 +71,24 @@ const ImageModal: React.FC<{
   // Download the currently viewed image (prefer webContentLink/fullSrc)
   const downloadCurrentImage = async () => {
     try {
-      const imageUrl = currentPhoto.fullSrc || currentPhoto.src;
-      const response = await fetch(imageUrl);
-      const blob = await response.blob();
-      const url = URL.createObjectURL(blob);
+      const imageUrl = currentPhoto.download || currentPhoto.fullSrc || currentPhoto.src;
+      if (!imageUrl) throw new Error('No image URL available');
 
-      // Extract file extension from the image name or URL
-      const fileName = currentPhoto.name || `wedding-photo-${selectedIndex + 1}`;
-      const fileExtension = fileName.split('.').pop() || 'jpg';
-      const downloadFileName = fileName.includes('.') ? fileName : `${fileName}.${fileExtension}`;
+      // Fetch the image as a blob and create an object URL to force download
+      // const response = await fetch(imageUrl);
+      // if (!response.ok) throw new Error('Failed to fetch image for download');
+      // const blob = await response.blob();
+      // const objectUrl = URL.createObjectURL(blob);
 
+      const fileName = (currentPhoto.name || `wedding-photo-${selectedIndex + 1}`).replace(/[^a-z0-9._-]/gi, '_');
       const a = document.createElement('a');
-      a.href = url;
-      a.download = downloadFileName;
+      a.href = imageUrl;
+      a.download = fileName;
       document.body.appendChild(a);
       a.click();
       a.remove();
-      URL.revokeObjectURL(url);
+      // revoke the created object url
+      URL.revokeObjectURL(imageUrl);
     } catch (error) {
       console.error('Download failed:', error);
       alert('Unable to download the image. Please try again.');
@@ -118,7 +119,6 @@ const ImageModal: React.FC<{
         >
           <DownloadCloud className="h-6 w-6" />
         </button>
-
         <button
           onClick={onClose}
           className="absolute top-2 right-2 md:top-4 md:right-4 z-10 p-2 bg-white/20 backdrop-blur-sm rounded-full text-white hover:bg-white/30 transition-colors"
@@ -163,7 +163,7 @@ const ImageModal: React.FC<{
 
         {/* Photo Info */}
         <div className="absolute bottom-4 left-4 right-4 bg-black/50 backdrop-blur-sm rounded-lg p-3 text-white text-center">
-          <p className="text-sm md:text-base font-medium">{currentPhoto.name || currentPhoto.alt}</p>
+          <p className="text-sm md:text-base font-medium">{currentPhoto.download || currentPhoto.alt}</p>
           <p className="text-xs text-gray-300 mt-1">{selectedIndex + 1} of {photos.length}</p>
         </div>
       </motion.div>
@@ -196,7 +196,8 @@ const WeddingGalleryWithView: React.FC<{ onPhotosAvailable: (hasPhotos: boolean)
       let pageToken: string | undefined = undefined;
 
       do {
-        const fields = 'nextPageToken,files(id,name,webViewLink)';
+        // request webContentLink and thumbnailLink so we can provide direct download URLs
+        const fields = 'nextPageToken,files(id,name,webViewLink,webContentLink,thumbnailLink)';
         const pageParam = pageToken ? `&pageToken=${pageToken}` : '';
         const url = `https://www.googleapis.com/drive/v3/files?q='${FOLDER_ID}'+in+parents+and+mimeType+contains+'image/'&fields=${fields}&pageSize=100${pageParam}&key=${API_KEY}`;
 
@@ -261,7 +262,8 @@ const WeddingGalleryWithView: React.FC<{ onPhotosAvailable: (hasPhotos: boolean)
     src: `https://drive.google.com/thumbnail?id=${photo.id}&sz=w1000`,
     alt: photo.name,
     name: photo.name,
-    download: photo.webContentLink,
+    // prefer webContentLink if provided by API, otherwise fallback to a uc?export=download URL
+    download: photo.webContentLink || `https://drive.google.com/uc?export=download&id=${photo.id}`,
     fullSrc: `https://drive.google.com/uc?export=view&id=${photo.id}`
   }));
 
@@ -309,22 +311,25 @@ const WeddingGalleryWithView: React.FC<{ onPhotosAvailable: (hasPhotos: boolean)
                   </button>
 
                   <button
-                    onClick={async () => {
+                    onClick={async (e) => {
+                      e.stopPropagation();
                       try {
-                        const imageUrl = `https://drive.google.com/uc?export=view&id=${photos[index].id}`;
-                        const response = await fetch(imageUrl);
-                        const blob = await response.blob();
-                        const url = URL.createObjectURL(blob);
+                        const p = photos[index];
+                        const imageUrl = p.webContentLink || p.download || p.fullSrc || `https://drive.google.com/uc?export=download&id=${p.id}` || p.src;
+                        if (!imageUrl) throw new Error('No download URL');
 
-                        const fileName = photos[index].name || `wedding-photo-${index + 1}.jpg`;
-
+                        // const res = await fetch(imageUrl);
+                        // if (!res.ok) throw new Error('Failed to fetch image');
+                        // const blob = await res.blob();
+                        // const objectUrl = URL.createObjectURL(blob);
+                        const fileName = (p.name || `wedding-photo-${index + 1}`).replace(/[^a-z0-9._-]/gi, '_');
                         const a = document.createElement('a');
-                        a.href = url;
+                        a.href = imageUrl;
                         a.download = fileName;
                         document.body.appendChild(a);
                         a.click();
                         a.remove();
-                        URL.revokeObjectURL(url);
+                        URL.revokeObjectURL(imageUrl);
                       } catch (error) {
                         console.error('Download failed:', error);
                         alert('Unable to download the image. Please try again.');
