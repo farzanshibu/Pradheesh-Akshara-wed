@@ -38,7 +38,7 @@ const addToRequestQueue = (request: () => Promise<void>) => {
 const ImageModal: React.FC<{
   isOpen: boolean;
   onClose: () => void;
-  photos: Array<{ id: number; src: string; alt: string; name?: string; fullSrc?: string; downloadName?: string }>;
+  photos: Array<{ id: number; src: string; alt: string; name?: string; fullSrc?: string; download?: string }>;
   selectedIndex: number;
   onNavigate: (index: number) => void;
 }> = ({ isOpen, onClose, photos, selectedIndex, onNavigate }) => {
@@ -69,35 +69,7 @@ const ImageModal: React.FC<{
   }, [isOpen, selectedIndex]);
 
   // Download the currently viewed image (prefer webContentLink/fullSrc)
-  const downloadCurrentImage = async () => {
-    try {
-      const ucDownload = `https://drive.google.com/uc?id=${currentPhoto.id}&export=download`;
-      const url = currentPhoto.downloadName || currentPhoto.fullSrc || ucDownload || currentPhoto.src;
-      if (!url) throw new Error('No download URL available');
 
-      const res = await fetch(url);
-      if (!res.ok) throw new Error('Download failed');
-      const blob = await res.blob();
-      const objectUrl = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = objectUrl;
-      const safeName = (currentPhoto.name || `photo-${currentPhoto.id}`).replace(/[^a-z0-9._-]/gi, '_');
-      a.download = `${safeName}`;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      URL.revokeObjectURL(objectUrl);
-    } catch (err) {
-      console.error('Image download failed:', err);
-      // Fallback: open Drive view if available
-      try {
-        const driveUrl = currentPhoto.downloadName || `https://drive.google.com/file/d/${currentPhoto.id}/view`;
-        window.open(driveUrl, '_blank');
-      } catch (e) {
-        alert('Unable to download the image.');
-      }
-    }
-  };
 
   return (
     <motion.div
@@ -115,13 +87,13 @@ const ImageModal: React.FC<{
         onClick={(e) => e.stopPropagation()}
       >
         {/* Close Button */}
-        <button
-          onClick={downloadCurrentImage}
+        <a
+          href={currentPhoto.download}
           className="absolute top-2 right-12 md:top-4 md:right-16 z-10 p-2 bg-white/20 backdrop-blur-sm rounded-full text-white hover:bg-white/30 transition-colors"
           title="Download Image"
         >
           <DownloadCloud className="h-6 w-6" />
-        </button>
+        </a>
 
         <button
           onClick={onClose}
@@ -312,40 +284,14 @@ const WeddingGalleryWithView: React.FC<{ onPhotosAvailable: (hasPhotos: boolean)
                     <span className="text-gray-700 font-medium">View Image</span>
                   </button>
 
-                  <button
-                    onClick={async (e) => {
-                      e.stopPropagation();
-                      // download thumbnail or direct download link
-                      try {
-                        const url = photo.download || photo.fullSrc || photo.src;
-                        if (!url) throw new Error('No download URL');
-                        const res = await fetch(url);
-                        if (!res.ok) throw new Error('Failed to fetch');
-                        const blob = await res.blob();
-                        const objectUrl = URL.createObjectURL(blob);
-                        const a = document.createElement('a');
-                        a.href = objectUrl;
-                        const safeName = (photo.name || `photo-${photo.id}`).replace(/[^a-z0-9._-]/gi, '_');
-                        // Try to determine extension from url or blob type
-                        const extMatch = (url.split('?')[0].match(/\.([a-zA-Z0-9]+)$/) || [null, 'jpg'])[1];
-                        a.download = `${safeName}.${extMatch}`;
-                        document.body.appendChild(a);
-                        a.click();
-                        a.remove();
-                        URL.revokeObjectURL(objectUrl);
-                      } catch (err) {
-                        console.error('Download failed', err);
-                        // fallback: open in new tab
-                        const fallback = photo.download || photo.fullSrc || photo.src;
-                        if (fallback) window.open(fallback, '_blank');
-                      }
-                    }}
+                  <a
+                   href={photo.download}
                     className="bg-white/90 hover:bg-white px-4 py-2 rounded-full flex items-center space-x-2 text-sm shadow-lg"
                     aria-label={`Download image ${photo.alt}`}
                   >
                     <DownloadCloud className="h-4 w-4 text-gray-700" />
                     <span className="text-gray-700 font-medium">Download</span>
-                  </button>
+                  </a>
                 </div>
               </div>
             </motion.div>

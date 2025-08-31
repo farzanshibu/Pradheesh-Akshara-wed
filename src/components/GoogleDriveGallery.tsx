@@ -170,30 +170,6 @@ const GoogleDriveGallery: React.FC<GoogleDriveGalleryProps> = ({
     }
   };
 
-  // Prefer explicit Drive download using webContentLink when available
-  const downloadFromDrive = async (image: DriveImage) => {
-    try {
-      // Prefer explicit webContentLink when available, otherwise use uc?id=...&export=download
-      const downloadUrl = image.webContentLink || `https://drive.google.com/uc?id=${image.id}&export=download`;
-      const res = await fetch(downloadUrl);
-      if (!res.ok) throw new Error('Drive download failed');
-      const blob = await res.blob();
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = image.name || `wedding-photo-${image.id}.jpg`;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      URL.revokeObjectURL(url);
-      console.log('Drive download initiated for:', image.name);
-    } catch (err) {
-      console.error('Drive download failed, opening in new tab', err);
-      // Open the drive file view as a last resort
-      window.open(image.webContentLink || `https://drive.google.com/file/d/${image.id}/view`, '_blank');
-      alert('Unable to download directly from Drive. The file was opened in a new tab for manual download.');
-    }
-  };
 
   const shareImage = async (image: DriveImage) => {
     // Use the shareable Google Drive URL instead of direct image URL
@@ -356,7 +332,6 @@ const GoogleDriveGallery: React.FC<GoogleDriveGalleryProps> = ({
                       <button
                         onClick={async () => {
                           setOpenDownloadIndex(null);
-                          await downloadFromDrive(image);
                         }}
                         className="w-full text-left px-3 py-2 hover:bg-gray-100 border-b"
                       >
