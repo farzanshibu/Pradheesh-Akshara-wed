@@ -214,7 +214,7 @@ const WeddingGalleryWithView: React.FC<{ onPhotosAvailable: (hasPhotos: boolean)
 
   const formattedPhotos = photos.map((photo, index) => ({
     id: index + 1,
-    src: photo.thumbnailLink || `https://drive.google.com/thumbnail?id=${photo.id}`,
+    src: `https://drive.google.com/thumbnail?id=${photo.id}`,
     alt: photo.name,
     name: photo.name,
     fullSrc: `https://drive.google.com/uc?export=view&id=${photo.id}`
