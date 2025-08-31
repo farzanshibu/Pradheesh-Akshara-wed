@@ -12,7 +12,7 @@ let isProcessingQueue = false;
 
 const processRequestQueue = async () => {
   if (isProcessingQueue || requestQueue.length === 0) return;
-  
+
   isProcessingQueue = true;
   while (requestQueue.length > 0) {
     const request = requestQueue.shift();
@@ -45,7 +45,7 @@ const ImageModal: React.FC<{
   if (!isOpen || selectedIndex === null) return null;
 
   const currentPhoto = photos[selectedIndex];
-  
+
   const nextImage = () => {
     onNavigate((selectedIndex + 1) % photos.length);
   };
@@ -69,6 +69,30 @@ const ImageModal: React.FC<{
   }, [isOpen, selectedIndex]);
 
   // Download the currently viewed image (prefer webContentLink/fullSrc)
+  const downloadCurrentImage = async () => {
+    try {
+      const imageUrl = currentPhoto.fullSrc || currentPhoto.src;
+      const response = await fetch(imageUrl);
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+
+      // Extract file extension from the image name or URL
+      const fileName = currentPhoto.name || `wedding-photo-${selectedIndex + 1}`;
+      const fileExtension = fileName.split('.').pop() || 'jpg';
+      const downloadFileName = fileName.includes('.') ? fileName : `${fileName}.${fileExtension}`;
+
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = downloadFileName;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('Download failed:', error);
+      alert('Unable to download the image. Please try again.');
+    }
+  };
 
 
   return (
@@ -87,13 +111,13 @@ const ImageModal: React.FC<{
         onClick={(e) => e.stopPropagation()}
       >
         {/* Close Button */}
-        <a
-          href={currentPhoto.download}
+        <button
+          onClick={downloadCurrentImage}
           className="absolute top-2 right-12 md:top-4 md:right-16 z-10 p-2 bg-white/20 backdrop-blur-sm rounded-full text-white hover:bg-white/30 transition-colors"
           title="Download Image"
         >
           <DownloadCloud className="h-6 w-6" />
-        </a>
+        </button>
 
         <button
           onClick={onClose}
@@ -111,7 +135,7 @@ const ImageModal: React.FC<{
             >
               <ChevronLeft className="h-8 w-8" />
             </button>
-            
+
             <button
               onClick={nextImage}
               className="absolute right-2 md:right-4 top-1/2 -translate-y-1/2 z-10 p-2 bg-white/20 backdrop-blur-sm rounded-full text-white hover:bg-white/30 transition-colors"
@@ -136,7 +160,7 @@ const ImageModal: React.FC<{
             }}
           />
         </div>
-        
+
         {/* Photo Info */}
         <div className="absolute bottom-4 left-4 right-4 bg-black/50 backdrop-blur-sm rounded-lg p-3 text-white text-center">
           <p className="text-sm md:text-base font-medium">{currentPhoto.name || currentPhoto.alt}</p>
@@ -158,13 +182,13 @@ const WeddingGalleryWithView: React.FC<{ onPhotosAvailable: (hasPhotos: boolean)
   const checkWeddingPhotos = React.useCallback(async (isRetry = false) => {
     const now = Date.now();
     const timeSinceLastRequest = now - lastRequestTime;
-    
+
     // Throttle requests to avoid 429 errors (minimum 1 second between requests)
     if (!isRetry && timeSinceLastRequest < 1000) {
       const waitTime = 1000 - timeSinceLastRequest;
       await new Promise(resolve => setTimeout(resolve, waitTime));
     }
-    
+
     try {
       const API_KEY = 'AIzaSyBNn-27uk3XXKmsj8PtZJwWc7ZBcz-ouRo';
       const FOLDER_ID = '1RE_611tbYddCK2uQoTDKl3KSY85RLbTU';
@@ -254,7 +278,7 @@ const WeddingGalleryWithView: React.FC<{ onPhotosAvailable: (hasPhotos: boolean)
           </span>
         </h3>
         <p className="text-purple-700 text-center mb-6">Fresh photos from our special day!</p>
-        
+
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-4">
           {formattedPhotos.map((photo, index) => (
             <motion.div
@@ -284,14 +308,34 @@ const WeddingGalleryWithView: React.FC<{ onPhotosAvailable: (hasPhotos: boolean)
                     <span className="text-gray-700 font-medium">View Image</span>
                   </button>
 
-                  <a
-                   href={photo.download}
+                  <button
+                    onClick={async () => {
+                      try {
+                        const imageUrl = `https://drive.google.com/uc?export=view&id=${photos[index].id}`;
+                        const response = await fetch(imageUrl);
+                        const blob = await response.blob();
+                        const url = URL.createObjectURL(blob);
+
+                        const fileName = photos[index].name || `wedding-photo-${index + 1}.jpg`;
+
+                        const a = document.createElement('a');
+                        a.href = url;
+                        a.download = fileName;
+                        document.body.appendChild(a);
+                        a.click();
+                        a.remove();
+                        URL.revokeObjectURL(url);
+                      } catch (error) {
+                        console.error('Download failed:', error);
+                        alert('Unable to download the image. Please try again.');
+                      }
+                    }}
                     className="bg-white/90 hover:bg-white px-4 py-2 rounded-full flex items-center space-x-2 text-sm shadow-lg"
                     aria-label={`Download image ${photo.alt}`}
                   >
                     <DownloadCloud className="h-4 w-4 text-gray-700" />
                     <span className="text-gray-700 font-medium">Download</span>
-                  </a>
+                  </button>
                 </div>
               </div>
             </motion.div>
@@ -320,13 +364,13 @@ const ReceptionGallery: React.FC<{ onPhotosAvailable: (hasPhotos: boolean) => vo
   const checkReceptionPhotos = React.useCallback(async (isRetry = false) => {
     const now = Date.now();
     const timeSinceLastRequest = now - lastRequestTime;
-    
+
     // Throttle requests to avoid 429 errors (minimum 1 second between requests)
     if (!isRetry && timeSinceLastRequest < 1000) {
       const waitTime = 1000 - timeSinceLastRequest;
       await new Promise(resolve => setTimeout(resolve, waitTime));
     }
-    
+
     try {
       const API_KEY = 'AIzaSyBNn-27uk3XXKmsj8PtZJwWc7ZBcz-ouRo';
       const FOLDER_ID = '1W3_aUFcDsB8HRodZ7_dZPDsqQ3zM81sY';
@@ -411,7 +455,7 @@ const ReceptionGallery: React.FC<{ onPhotosAvailable: (hasPhotos: boolean) => vo
 const NowPhotosGrid: React.FC = () => {
   const [hasWeddingPhotos, setHasWeddingPhotos] = React.useState<boolean | null>(null);
   const [hasReceptionPhotos, setHasReceptionPhotos] = React.useState<boolean | null>(null);
-  
+
   // load assets via Vite glob
   const assets = import.meta.glob('../assets/*.{jpg,jpeg,png,webp}', { as: 'url', eager: true }) as Record<string, string>;
 
@@ -505,9 +549,9 @@ const NowPhotosGrid: React.FC = () => {
     <div>
       {/* Wedding Photos Coming Soon (hide when photos are available, show loading state initially) */}
       {hasWeddingPhotos === null ? (
-        <motion.div 
-          initial={{ opacity: 0, y: 6 }} 
-          animate={{ opacity: 1, y: 0 }} 
+        <motion.div
+          initial={{ opacity: 0, y: 6 }}
+          animate={{ opacity: 1, y: 0 }}
           className="mb-6 p-6 rounded-lg bg-gradient-to-r from-yellow-50 to-amber-50 text-center border border-dashed border-gray-200"
         >
           <div className="animate-pulse">
@@ -516,9 +560,9 @@ const NowPhotosGrid: React.FC = () => {
           </div>
         </motion.div>
       ) : hasWeddingPhotos === false ? (
-        <motion.div 
-          initial={{ opacity: 0, y: 6 }} 
-          animate={{ opacity: 1, y: 0 }} 
+        <motion.div
+          initial={{ opacity: 0, y: 6 }}
+          animate={{ opacity: 1, y: 0 }}
           className="mb-6 p-6 rounded-lg bg-gradient-to-r from-yellow-50 to-amber-50 text-center border border-dashed border-gray-200"
         >
           <h4 className="text-xl font-semibold mb-2 inline-block px-3 py-1 rounded-lg bg-gradient-to-r from-pink-500 to-rose-500 text-white">Wedding Photos — Coming Soon</h4>
@@ -527,7 +571,7 @@ const NowPhotosGrid: React.FC = () => {
           {/* Wedding countdown */}
           <div className="mt-4 flex items-center justify-center space-x-3">
             {weddingLeft.days > 0 || weddingLeft.hours > 0 || weddingLeft.minutes > 0 || weddingLeft.seconds > 0 ? (
-              [{label: 'Days', value: weddingLeft.days}, {label: 'Hours', value: weddingLeft.hours}, {label: 'Minutes', value: weddingLeft.minutes}, {label: 'Seconds', value: weddingLeft.seconds}].map((it) => (
+              [{ label: 'Days', value: weddingLeft.days }, { label: 'Hours', value: weddingLeft.hours }, { label: 'Minutes', value: weddingLeft.minutes }, { label: 'Seconds', value: weddingLeft.seconds }].map((it) => (
                 <div key={it.label} className="bg-white/90 text-rose-700 px-3 py-2 rounded-md shadow-sm">
                   <div className="font-bold text-lg">{String(it.value).padStart(2, '0')}</div>
                   <div className="text-xs">{it.label}</div>
@@ -577,7 +621,7 @@ const NowPhotosGrid: React.FC = () => {
           {/* Reception countdown */}
           <div className="mt-4 flex items-center justify-center space-x-3">
             {receptionLeft.days > 0 || receptionLeft.hours > 0 || receptionLeft.minutes > 0 || receptionLeft.seconds > 0 ? (
-              [{label: 'Days', value: receptionLeft.days}, {label: 'Hours', value: receptionLeft.hours}, {label: 'Minutes', value: receptionLeft.minutes}, {label: 'Seconds', value: receptionLeft.seconds}].map((it) => (
+              [{ label: 'Days', value: receptionLeft.days }, { label: 'Hours', value: receptionLeft.hours }, { label: 'Minutes', value: receptionLeft.minutes }, { label: 'Seconds', value: receptionLeft.seconds }].map((it) => (
                 <div key={it.label} className="bg-white/90 text-emerald-800 px-3 py-2 rounded-md shadow-sm">
                   <div className="font-bold text-lg">{String(it.value).padStart(2, '0')}</div>
                   <div className="text-xs">{it.label}</div>
@@ -614,13 +658,13 @@ const NowPhotosGrid: React.FC = () => {
       <div className="mb-8 text-center">
         <h3 className="text-2xl md:text-3xl font-bold mb-2 inline-block px-3 py-1 rounded-lg bg-gradient-to-r from-amber-400 to-orange-500 text-white">Save the Date</h3>
         <p className="text-orange-700 mb-4">These are our Save-the-Date photos — download and share with loved ones.</p>
-        
+
         {/* Save the Date countdown */}
         <div className="mb-6">
           <p className="text-orange-800 font-semibold mb-3">Time until our special day:</p>
           <div className="flex items-center justify-center space-x-3">
             {weddingLeft.days > 0 || weddingLeft.hours > 0 || weddingLeft.minutes > 0 || weddingLeft.seconds > 0 ? (
-              [{label: 'Days', value: weddingLeft.days}, {label: 'Hours', value: weddingLeft.hours}, {label: 'Minutes', value: weddingLeft.minutes}, {label: 'Seconds', value: weddingLeft.seconds}].map((it) => (
+              [{ label: 'Days', value: weddingLeft.days }, { label: 'Hours', value: weddingLeft.hours }, { label: 'Minutes', value: weddingLeft.minutes }, { label: 'Seconds', value: weddingLeft.seconds }].map((it) => (
                 <div key={it.label} className="bg-white/90 text-orange-800 px-3 py-2 rounded-md shadow-sm">
                   <div className="font-bold text-lg">{String(it.value).padStart(2, '0')}</div>
                   <div className="text-xs">{it.label}</div>
@@ -633,7 +677,7 @@ const NowPhotosGrid: React.FC = () => {
             )}
           </div>
         </div>
-        
+
         <div className="flex items-center justify-center">
           <button
             onClick={async () => {
