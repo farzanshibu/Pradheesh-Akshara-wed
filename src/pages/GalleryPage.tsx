@@ -4,6 +4,7 @@ import Header from '../components/Header';
 import Footer from '../components/Footer';
 import GoogleDriveGallery from '../components/GoogleDriveGallery';
 import { Share2, DownloadCloud, Eye, X, ChevronLeft, ChevronRight } from 'lucide-react';
+import confetti from 'canvas-confetti';
 
 // Global request queue to prevent simultaneous API calls
 let requestQueue: Array<() => Promise<void>> = [];
@@ -656,6 +657,46 @@ const NowPhotosGrid: React.FC = () => {
 };
 
 const GalleryPage: React.FC = () => {
+  // Firework confetti effect on page load
+  React.useEffect(() => {
+    const firework = () => {
+      const duration = 3000;
+      const animationEnd = Date.now() + duration;
+      const defaults = { startVelocity: 30, spread: 360, ticks: 60, zIndex: 0 };
+
+      const randomInRange = (min: number, max: number) => {
+        return Math.random() * (max - min) + min;
+      };
+
+      const interval = setInterval(() => {
+        const timeLeft = animationEnd - Date.now();
+
+        if (timeLeft <= 0) {
+          clearInterval(interval);
+          return;
+        }
+
+        const particleCount = 50 * (timeLeft / duration);
+
+        // since particles fall down, start a bit higher than random
+        confetti({
+          ...defaults,
+          particleCount,
+          origin: { x: randomInRange(0.1, 0.3), y: Math.random() - 0.2 }
+        });
+        confetti({
+          ...defaults,
+          particleCount,
+          origin: { x: randomInRange(0.7, 0.9), y: Math.random() - 0.2 }
+        });
+      }, 250);
+    };
+
+    // Trigger firework after a short delay
+    const timer = setTimeout(firework, 1000);
+    return () => clearTimeout(timer);
+  }, []);
+
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.4 }} className="min-h-screen bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50">
       <Header />
