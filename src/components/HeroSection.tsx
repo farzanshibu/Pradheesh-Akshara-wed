@@ -134,8 +134,7 @@ const HeroSection: React.FC = () => {
   // Share function for WhatsApp
   const shareInvitation = (cardType: string) => {
     let shareText = '';
-    let imageUrl = '';
-    
+
     if (cardType === 'wedding') {
       shareText = `💌 You're Invited! 💌
 We're tying the knot! 💍
@@ -145,7 +144,7 @@ Sunday • 10:00 AM - 11:00 AM
 📍 GURUKRIPA Auditorium, Peruntattil
 
 Check out our wedding invite & watch live photos here:`;
-      imageUrl = bannerImg;
+      
     } else {
       shareText = `💌 You're Invited! 💌
 Join us for our Wedding Reception! 🎉
@@ -155,7 +154,6 @@ Monday • 4:00 PM onwards
 📍 A.H. Palace, Mankara, Palakkad
 
 Check out our wedding invite & watch live photos here:`;
-      imageUrl = receptionBannerImg;
     }
     
     // For mobile devices, try to use native sharing

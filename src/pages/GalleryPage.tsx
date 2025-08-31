@@ -157,36 +157,44 @@ const WeddingGalleryWithView: React.FC<{ onPhotosAvailable: (hasPhotos: boolean)
     try {
       const API_KEY = 'AIzaSyBNn-27uk3XXKmsj8PtZJwWc7ZBcz-ouRo';
       const FOLDER_ID = '1RE_611tbYddCK2uQoTDKl3KSY85RLbTU';
-      const response = await fetch(
-        `https://www.googleapis.com/drive/v3/files?q='${FOLDER_ID}'+in+parents+and+mimeType+contains+'image/'&fields=files(id,name,webViewLink)&key=${API_KEY}`
-      );
-      
-      setLastRequestTime(Date.now());
-      
-      if (!response.ok) {
-        if (response.status === 403) {
-          throw new Error('Access denied. Please ensure the Google Drive folder is publicly shared.');
-        } else if (response.status === 429) {
-          // Implement exponential backoff for 429 errors
-          if (retryCount < 3) {
-            const backoffTime = Math.pow(2, retryCount) * 2000; // 2s, 4s, 8s
-            console.log(`Rate limited. Retrying wedding photos in ${backoffTime}ms...`);
-            setTimeout(() => {
+      let allFiles: any[] = [];
+      let pageToken: string | undefined = undefined;
+
+      do {
+        const fields = 'nextPageToken,files(id,name,webViewLink)';
+        const pageParam = pageToken ? `&pageToken=${pageToken}` : '';
+        const url = `https://www.googleapis.com/drive/v3/files?q='${FOLDER_ID}'+in+parents+and+mimeType+contains+'image/'&fields=${fields}&pageSize=100${pageParam}&key=${API_KEY}`;
+
+        const response = await fetch(url);
+        setLastRequestTime(Date.now());
+
+        if (!response.ok) {
+          if (response.status === 403) {
+            throw new Error('Access denied. Please ensure the Google Drive folder is publicly shared.');
+          } else if (response.status === 429) {
+            if (retryCount < 3) {
+              const backoffTime = Math.pow(2, retryCount) * 2000;
+              console.log(`Rate limited. Retrying wedding photos in ${backoffTime}ms...`);
+              await new Promise(resolve => setTimeout(resolve, backoffTime));
               setRetryCount(prev => prev + 1);
-              addToRequestQueue(() => checkWeddingPhotos(true));
-            }, backoffTime);
-            return;
+              continue; // retry current page
+            }
+            throw new Error('API rate limit exceeded. Please try again later.');
+          } else {
+            throw new Error(`Failed to fetch images: ${response.status} ${response.statusText}`);
           }
-          throw new Error('API rate limit exceeded. Please try again later.');
-        } else {
-          throw new Error(`Failed to fetch images: ${response.status} ${response.statusText}`);
         }
-      }
-      
-      const data = await response.json();
-      const hasPhotos = data.files && data.files.length > 0;
-      setPhotos(data.files || []);
-      setRetryCount(0); // Reset retry count on success
+
+        const data = await response.json();
+        if (data.files && data.files.length > 0) {
+          allFiles.push(...data.files);
+        }
+        pageToken = data.nextPageToken;
+      } while (pageToken);
+
+      const hasPhotos = allFiles.length > 0;
+      setPhotos(allFiles);
+      setRetryCount(0);
       onPhotosAvailable(hasPhotos);
     } catch (error) {
       console.error('Error checking wedding photos:', error);
@@ -299,36 +307,44 @@ const ReceptionGallery: React.FC<{ onPhotosAvailable: (hasPhotos: boolean) => vo
     try {
       const API_KEY = 'AIzaSyBNn-27uk3XXKmsj8PtZJwWc7ZBcz-ouRo';
       const FOLDER_ID = '1W3_aUFcDsB8HRodZ7_dZPDsqQ3zM81sY';
-      const response = await fetch(
-        `https://www.googleapis.com/drive/v3/files?q='${FOLDER_ID}'+in+parents+and+mimeType+contains+'image/'&fields=files(id,name,webViewLink,webContentLink,thumbnailLink)&key=${API_KEY}`
-      );
-      
-      setLastRequestTime(Date.now());
-      
-      if (!response.ok) {
-        if (response.status === 403) {
-          throw new Error('Access denied. Please ensure the Google Drive folder is publicly shared.');
-        } else if (response.status === 429) {
-          // Implement exponential backoff for 429 errors
-          if (retryCount < 3) {
-            const backoffTime = Math.pow(2, retryCount) * 2000; // 2s, 4s, 8s
-            console.log(`Rate limited. Retrying reception photos in ${backoffTime}ms...`);
-            setTimeout(() => {
+      let allFiles: any[] = [];
+      let pageToken: string | undefined = undefined;
+
+      do {
+        const fields = 'nextPageToken,files(id,name,webViewLink,webContentLink,thumbnailLink)';
+        const pageParam = pageToken ? `&pageToken=${pageToken}` : '';
+        const url = `https://www.googleapis.com/drive/v3/files?q='${FOLDER_ID}'+in+parents+and+mimeType+contains+'image/'&fields=${fields}&pageSize=100${pageParam}&key=${API_KEY}`;
+
+        const response = await fetch(url);
+        setLastRequestTime(Date.now());
+
+        if (!response.ok) {
+          if (response.status === 403) {
+            throw new Error('Access denied. Please ensure the Google Drive folder is publicly shared.');
+          } else if (response.status === 429) {
+            if (retryCount < 3) {
+              const backoffTime = Math.pow(2, retryCount) * 2000;
+              console.log(`Rate limited. Retrying reception photos in ${backoffTime}ms...`);
+              await new Promise(resolve => setTimeout(resolve, backoffTime));
               setRetryCount(prev => prev + 1);
-              addToRequestQueue(() => checkReceptionPhotos(true));
-            }, backoffTime);
-            return;
+              continue; // retry current page
+            }
+            throw new Error('API rate limit exceeded. Please try again later.');
+          } else {
+            throw new Error(`Failed to fetch images: ${response.status} ${response.statusText}`);
           }
-          throw new Error('API rate limit exceeded. Please try again later.');
-        } else {
-          throw new Error(`Failed to fetch images: ${response.status} ${response.statusText}`);
         }
-      }
-      
-      const data = await response.json();
-      const hasPhotos = data.files && data.files.length > 0;
-      setPhotos(data.files || []);
-      setRetryCount(0); // Reset retry count on success
+
+        const data = await response.json();
+        if (data.files && data.files.length > 0) {
+          allFiles.push(...data.files);
+        }
+        pageToken = data.nextPageToken;
+      } while (pageToken);
+
+      const hasPhotos = allFiles.length > 0;
+      setPhotos(allFiles);
+      setRetryCount(0);
       onPhotosAvailable(hasPhotos);
     } catch (error) {
       console.error('Error checking reception photos:', error);

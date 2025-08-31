@@ -55,38 +55,47 @@ const GoogleDriveGallery: React.FC<GoogleDriveGalleryProps> = ({
     setError(null);
     
     try {
-      // Fetch files from Google Drive folder
-      const response = await fetch(
-        `https://www.googleapis.com/drive/v3/files?q='${FOLDER_ID}'+in+parents+and+mimeType+contains+'image/'&fields=files(id,name,webViewLink,webContentLink,thumbnailLink,mimeType)&key=${API_KEY}`
-      );
+      // Paginate through Google Drive results (pageSize=100)
+      let allFiles: any[] = [];
+      let pageToken: string | undefined = undefined;
 
-      setLastRequestTime(Date.now());
-      
-      if (!response.ok) {
-        if (response.status === 403) {
-          throw new Error('Access denied. Please ensure the Google Drive folder is publicly shared with "Anyone with the link can view".');
-        } else if (response.status === 429) {
-          // Implement exponential backoff for 429 errors
-          if (retryCount < 3) {
-            const backoffTime = Math.pow(2, retryCount) * 2000; // 2s, 4s, 8s
-            console.log(`Rate limited. Retrying in ${backoffTime}ms...`);
-            setTimeout(() => {
+      do {
+        const fields = 'nextPageToken,files(id,name,webViewLink,webContentLink,thumbnailLink,mimeType)';
+        const pageParam = pageToken ? `&pageToken=${pageToken}` : '';
+        const url = `https://www.googleapis.com/drive/v3/files?q='${FOLDER_ID}'+in+parents+and+mimeType+contains+'image/'&fields=${fields}&pageSize=100${pageParam}&key=${API_KEY}`;
+
+        const response = await fetch(url);
+        setLastRequestTime(Date.now());
+
+        if (!response.ok) {
+          if (response.status === 403) {
+            throw new Error('Access denied. Please ensure the Google Drive folder is publicly shared with "Anyone with the link can view".');
+          } else if (response.status === 429) {
+            // Implement exponential backoff for 429 errors
+            if (retryCount < 3) {
+              const backoffTime = Math.pow(2, retryCount) * 2000; // 2s, 4s, 8s
+              console.log(`Rate limited. Retrying in ${backoffTime}ms...`);
+              await new Promise(resolve => setTimeout(resolve, backoffTime));
               setRetryCount(prev => prev + 1);
-              fetchGoogleDriveImages(true);
-            }, backoffTime);
-            return;
+              // retry the same page
+              continue;
+            }
+            throw new Error('API rate limit exceeded. Please try again later.');
+          } else {
+            throw new Error(`Failed to fetch images: ${response.status} ${response.statusText}`);
           }
-          throw new Error('API rate limit exceeded. Please try again later.');
-        } else {
-          throw new Error(`Failed to fetch images: ${response.status} ${response.statusText}`);
         }
-      }
 
-      const data = await response.json();
-      
-      if (data.files && data.files.length > 0) {
-        // Process and set the images
-        const processedImages: DriveImage[] = data.files.map((file: any) => ({
+        const data = await response.json();
+        if (data.files && data.files.length > 0) {
+          allFiles.push(...data.files);
+        }
+
+        pageToken = data.nextPageToken;
+      } while (pageToken);
+
+      if (allFiles.length > 0) {
+        const processedImages: DriveImage[] = allFiles.map((file: any) => ({
           id: file.id,
           name: file.name || 'Untitled',
           webViewLink: file.webViewLink || '',
@@ -96,7 +105,7 @@ const GoogleDriveGallery: React.FC<GoogleDriveGalleryProps> = ({
         }));
 
         setImages(processedImages);
-        setRetryCount(0); // Reset retry count on success
+        setRetryCount(0);
       } else {
         setImages([]);
       }
