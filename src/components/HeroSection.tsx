@@ -133,7 +133,7 @@ Check out our wedding invite & watch live photos here:`;
       timeLeft: timeLeft,
       message: "Until We Say \"I Do\" 💕",
       linkText: "See Live Wedding Photos",
-      linkSubtext: "Coming soon — live wedding photos will appear here.",
+      linkSubtext: "Click to View — live wedding photos will appear here.",
       gradient: "from-amber-900/70 via-orange-900/60 to-yellow-900/70"
     },
     {

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { Loader2, Image as ImageIcon, RefreshCw, AlertCircle, Download, Share2 } from 'lucide-react';
 
@@ -34,12 +34,23 @@ const GoogleDriveGallery: React.FC<GoogleDriveGalleryProps> = ({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loadedImages, setLoadedImages] = useState<Record<string, boolean>>({});
+  const [retryCount, setRetryCount] = useState(0);
+  const [lastRequestTime, setLastRequestTime] = useState(0);
 
   // Google Drive API configuration
   const API_KEY = 'AIzaSyBNn-27uk3XXKmsj8PtZJwWc7ZBcz-ouRo';
   const FOLDER_ID = folderId;
 
-  const fetchGoogleDriveImages = async () => {
+  const fetchGoogleDriveImages = useCallback(async (isRetry = false) => {
+    const now = Date.now();
+    const timeSinceLastRequest = now - lastRequestTime;
+    
+    // Throttle requests to avoid 429 errors (minimum 1 second between requests)
+    if (!isRetry && timeSinceLastRequest < 1000) {
+      const waitTime = 1000 - timeSinceLastRequest;
+      await new Promise(resolve => setTimeout(resolve, waitTime));
+    }
+    
     setLoading(true);
     setError(null);
     
@@ -49,8 +60,26 @@ const GoogleDriveGallery: React.FC<GoogleDriveGalleryProps> = ({
         `https://www.googleapis.com/drive/v3/files?q='${FOLDER_ID}'+in+parents+and+mimeType+contains+'image/'&fields=files(id,name,webViewLink,webContentLink,thumbnailLink,mimeType)&key=${API_KEY}`
       );
 
+      setLastRequestTime(Date.now());
+      
       if (!response.ok) {
-        throw new Error(`Failed to fetch images: ${response.status} ${response.statusText}`);
+        if (response.status === 403) {
+          throw new Error('Access denied. Please ensure the Google Drive folder is publicly shared with "Anyone with the link can view".');
+        } else if (response.status === 429) {
+          // Implement exponential backoff for 429 errors
+          if (retryCount < 3) {
+            const backoffTime = Math.pow(2, retryCount) * 2000; // 2s, 4s, 8s
+            console.log(`Rate limited. Retrying in ${backoffTime}ms...`);
+            setTimeout(() => {
+              setRetryCount(prev => prev + 1);
+              fetchGoogleDriveImages(true);
+            }, backoffTime);
+            return;
+          }
+          throw new Error('API rate limit exceeded. Please try again later.');
+        } else {
+          throw new Error(`Failed to fetch images: ${response.status} ${response.statusText}`);
+        }
       }
 
       const data = await response.json();
@@ -67,6 +96,7 @@ const GoogleDriveGallery: React.FC<GoogleDriveGalleryProps> = ({
         }));
 
         setImages(processedImages);
+        setRetryCount(0); // Reset retry count on success
       } else {
         setImages([]);
       }
@@ -76,25 +106,30 @@ const GoogleDriveGallery: React.FC<GoogleDriveGalleryProps> = ({
     } finally {
       setLoading(false);
     }
-  };
+  }, [FOLDER_ID, API_KEY, lastRequestTime, retryCount]);
 
   useEffect(() => {
     fetchGoogleDriveImages();
-  }, []);
+  }, [fetchGoogleDriveImages]);
 
   const handleImageLoad = (imageId: string) => {
     setLoadedImages(prev => ({ ...prev, [imageId]: true }));
   };
 
   const getDirectImageUrl = (image: DriveImage) => {
-    // Use the thumbnail link for smaller images or construct direct link for full size
-    return `https://drive.google.com/uc?export=view&id=${image.id}`;
+    // Use thumbnail link for display, which is more reliable
+    return image.thumbnailLink || `https://drive.google.com/thumbnail?id=${image.id}&sz=w400-h300`;
+  };
+
+  const getFullImageUrl = (image: DriveImage) => {
+    // Use webContentLink if available, otherwise try direct export
+    return image.webContentLink || `https://drive.google.com/uc?export=view&id=${image.id}`;
   };
 
   const downloadImage = async (image: DriveImage) => {
     try {
-      // Create a direct download link for Google Drive files
-      const downloadUrl = `https://drive.google.com/uc?export=download&id=${image.id}`;
+      // Use the full image URL for download
+      const downloadUrl = getFullImageUrl(image);
       
       // Create a temporary anchor element and trigger download
       const link = document.createElement('a');
@@ -185,7 +220,7 @@ const GoogleDriveGallery: React.FC<GoogleDriveGalleryProps> = ({
         <h3 className="text-lg font-semibold text-red-700 mb-2">Unable to Load Photos</h3>
         <p className="text-red-600 mb-4">{error}</p>
         <button
-          onClick={fetchGoogleDriveImages}
+          onClick={() => fetchGoogleDriveImages()}
           className="inline-flex items-center space-x-2 px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors"
         >
           <RefreshCw className="h-4 w-4" />
@@ -210,7 +245,7 @@ const GoogleDriveGallery: React.FC<GoogleDriveGalleryProps> = ({
           <p className={`${textColor} mt-2`}>{description} ({images.length} photos)</p>
         </div>
         <button
-          onClick={fetchGoogleDriveImages}
+          onClick={() => fetchGoogleDriveImages()}
           disabled={loading}
           className={`inline-flex items-center space-x-2 px-4 py-2 bg-gradient-to-r from-${gradientFrom} to-${gradientTo} text-white rounded-lg hover:brightness-105 transition-all disabled:opacity-50`}
         >
@@ -251,10 +286,12 @@ const GoogleDriveGallery: React.FC<GoogleDriveGalleryProps> = ({
                   loadedImages[image.id] ? 'opacity-100' : 'opacity-0'
                 }`}
                 onError={(e) => {
-                  // Fallback to thumbnail if direct URL fails
+                  // Fallback to webContentLink if thumbnail fails
                   const target = e.target as HTMLImageElement;
-                  if (target.src !== image.thumbnailLink) {
-                    target.src = image.thumbnailLink;
+                  if (target.src !== image.webContentLink && image.webContentLink) {
+                    target.src = image.webContentLink;
+                  } else if (target.src !== `https://drive.google.com/uc?export=view&id=${image.id}`) {
+                    target.src = `https://drive.google.com/uc?export=view&id=${image.id}`;
                   }
                 }}
               />

@@ -5,11 +5,39 @@ import Footer from '../components/Footer';
 import GoogleDriveGallery from '../components/GoogleDriveGallery';
 import { Share2, DownloadCloud, Eye, X, ChevronLeft, ChevronRight } from 'lucide-react';
 
+// Global request queue to prevent simultaneous API calls
+let requestQueue: Array<() => Promise<void>> = [];
+let isProcessingQueue = false;
+
+const processRequestQueue = async () => {
+  if (isProcessingQueue || requestQueue.length === 0) return;
+  
+  isProcessingQueue = true;
+  while (requestQueue.length > 0) {
+    const request = requestQueue.shift();
+    if (request) {
+      try {
+        await request();
+        // Add delay between requests to respect rate limits
+        await new Promise(resolve => setTimeout(resolve, 500));
+      } catch (error) {
+        console.error('Request queue error:', error);
+      }
+    }
+  }
+  isProcessingQueue = false;
+};
+
+const addToRequestQueue = (request: () => Promise<void>) => {
+  requestQueue.push(request);
+  processRequestQueue();
+};
+
 // Enhanced Image Modal Component with Gallery Navigation
 const ImageModal: React.FC<{
   isOpen: boolean;
   onClose: () => void;
-  photos: Array<{ id: number; src: string; alt: string; name?: string }>;
+  photos: Array<{ id: number; src: string; alt: string; name?: string; fullSrc?: string }>;
   selectedIndex: number;
   onNavigate: (index: number) => void;
 }> = ({ isOpen, onClose, photos, selectedIndex, onNavigate }) => {
@@ -84,9 +112,16 @@ const ImageModal: React.FC<{
         {/* Image Container */}
         <div className="rounded-xl md:rounded-2xl overflow-hidden max-h-[80vh] max-w-full">
           <img
-            src={currentPhoto.src}
+            src={currentPhoto.fullSrc || currentPhoto.src}
             alt={currentPhoto.alt}
             className="w-full h-full object-contain"
+            onError={(e) => {
+              // Fallback to thumbnail if full image fails
+              const target = e.target as HTMLImageElement;
+              if (target.src !== currentPhoto.src) {
+                target.src = currentPhoto.src;
+              }
+            }}
           />
         </div>
         
@@ -105,29 +140,64 @@ const WeddingGalleryWithView: React.FC<{ onPhotosAvailable: (hasPhotos: boolean)
   const [photos, setPhotos] = React.useState<any[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [selectedImageIndex, setSelectedImageIndex] = React.useState<number | null>(null);
+  const [retryCount, setRetryCount] = React.useState(0);
+  const [lastRequestTime, setLastRequestTime] = React.useState(0);
+
+  const checkWeddingPhotos = React.useCallback(async (isRetry = false) => {
+    const now = Date.now();
+    const timeSinceLastRequest = now - lastRequestTime;
+    
+    // Throttle requests to avoid 429 errors (minimum 1 second between requests)
+    if (!isRetry && timeSinceLastRequest < 1000) {
+      const waitTime = 1000 - timeSinceLastRequest;
+      await new Promise(resolve => setTimeout(resolve, waitTime));
+    }
+    
+    try {
+      const API_KEY = 'AIzaSyBNn-27uk3XXKmsj8PtZJwWc7ZBcz-ouRo';
+      const FOLDER_ID = '1RE_611tbYddCK2uQoTDKl3KSY85RLbTU';
+      const response = await fetch(
+        `https://www.googleapis.com/drive/v3/files?q='${FOLDER_ID}'+in+parents+and+mimeType+contains+'image/'&fields=files(id,name,webViewLink,webContentLink,thumbnailLink)&key=${API_KEY}`
+      );
+      
+      setLastRequestTime(Date.now());
+      
+      if (!response.ok) {
+        if (response.status === 403) {
+          throw new Error('Access denied. Please ensure the Google Drive folder is publicly shared.');
+        } else if (response.status === 429) {
+          // Implement exponential backoff for 429 errors
+          if (retryCount < 3) {
+            const backoffTime = Math.pow(2, retryCount) * 2000; // 2s, 4s, 8s
+            console.log(`Rate limited. Retrying wedding photos in ${backoffTime}ms...`);
+            setTimeout(() => {
+              setRetryCount(prev => prev + 1);
+              addToRequestQueue(() => checkWeddingPhotos(true));
+            }, backoffTime);
+            return;
+          }
+          throw new Error('API rate limit exceeded. Please try again later.');
+        } else {
+          throw new Error(`Failed to fetch images: ${response.status} ${response.statusText}`);
+        }
+      }
+      
+      const data = await response.json();
+      const hasPhotos = data.files && data.files.length > 0;
+      setPhotos(data.files || []);
+      setRetryCount(0); // Reset retry count on success
+      onPhotosAvailable(hasPhotos);
+    } catch (error) {
+      console.error('Error checking wedding photos:', error);
+      onPhotosAvailable(false);
+    } finally {
+      setLoading(false);
+    }
+  }, [lastRequestTime, retryCount, onPhotosAvailable]);
 
   React.useEffect(() => {
-    const checkWeddingPhotos = async () => {
-      try {
-        const API_KEY = 'AIzaSyBNn-27uk3XXKmsj8PtZJwWc7ZBcz-ouRo';
-        const FOLDER_ID = '1RE_611tbYddCK2uQoTDKl3KSY85RLbTU';
-        const response = await fetch(
-          `https://www.googleapis.com/drive/v3/files?q='${FOLDER_ID}'+in+parents+and+mimeType+contains+'image/'&fields=files(id,name,webViewLink,thumbnailLink)&key=${API_KEY}`
-        );
-        const data = await response.json();
-        const hasPhotos = data.files && data.files.length > 0;
-        setPhotos(data.files || []);
-        onPhotosAvailable(hasPhotos);
-      } catch (error) {
-        console.error('Error checking wedding photos:', error);
-        onPhotosAvailable(false);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    checkWeddingPhotos();
-  }, [onPhotosAvailable]);
+    addToRequestQueue(() => checkWeddingPhotos());
+  }, [checkWeddingPhotos]);
 
   if (loading) {
     return (
@@ -144,9 +214,10 @@ const WeddingGalleryWithView: React.FC<{ onPhotosAvailable: (hasPhotos: boolean)
 
   const formattedPhotos = photos.map((photo, index) => ({
     id: index + 1,
-    src: `https://drive.google.com/uc?id=${photo.id}`,
+    src: photo.thumbnailLink || `https://drive.google.com/thumbnail?id=${photo.id}`,
     alt: photo.name,
-    name: photo.name
+    name: photo.name,
+    fullSrc: `https://drive.google.com/uc?export=view&id=${photo.id}`
   }));
 
   return (
@@ -211,29 +282,64 @@ const WeddingGalleryWithView: React.FC<{ onPhotosAvailable: (hasPhotos: boolean)
 const ReceptionGallery: React.FC<{ onPhotosAvailable: (hasPhotos: boolean) => void }> = ({ onPhotosAvailable }) => {
   const [photos, setPhotos] = React.useState<any[]>([]);
   const [loading, setLoading] = React.useState(true);
+  const [retryCount, setRetryCount] = React.useState(0);
+  const [lastRequestTime, setLastRequestTime] = React.useState(0);
+
+  const checkReceptionPhotos = React.useCallback(async (isRetry = false) => {
+    const now = Date.now();
+    const timeSinceLastRequest = now - lastRequestTime;
+    
+    // Throttle requests to avoid 429 errors (minimum 1 second between requests)
+    if (!isRetry && timeSinceLastRequest < 1000) {
+      const waitTime = 1000 - timeSinceLastRequest;
+      await new Promise(resolve => setTimeout(resolve, waitTime));
+    }
+    
+    try {
+      const API_KEY = 'AIzaSyBNn-27uk3XXKmsj8PtZJwWc7ZBcz-ouRo';
+      const FOLDER_ID = '1W3_aUFcDsB8HRodZ7_dZPDsqQ3zM81sY';
+      const response = await fetch(
+        `https://www.googleapis.com/drive/v3/files?q='${FOLDER_ID}'+in+parents+and+mimeType+contains+'image/'&fields=files(id,name,webViewLink,webContentLink,thumbnailLink)&key=${API_KEY}`
+      );
+      
+      setLastRequestTime(Date.now());
+      
+      if (!response.ok) {
+        if (response.status === 403) {
+          throw new Error('Access denied. Please ensure the Google Drive folder is publicly shared.');
+        } else if (response.status === 429) {
+          // Implement exponential backoff for 429 errors
+          if (retryCount < 3) {
+            const backoffTime = Math.pow(2, retryCount) * 2000; // 2s, 4s, 8s
+            console.log(`Rate limited. Retrying reception photos in ${backoffTime}ms...`);
+            setTimeout(() => {
+              setRetryCount(prev => prev + 1);
+              addToRequestQueue(() => checkReceptionPhotos(true));
+            }, backoffTime);
+            return;
+          }
+          throw new Error('API rate limit exceeded. Please try again later.');
+        } else {
+          throw new Error(`Failed to fetch images: ${response.status} ${response.statusText}`);
+        }
+      }
+      
+      const data = await response.json();
+      const hasPhotos = data.files && data.files.length > 0;
+      setPhotos(data.files || []);
+      setRetryCount(0); // Reset retry count on success
+      onPhotosAvailable(hasPhotos);
+    } catch (error) {
+      console.error('Error checking reception photos:', error);
+      onPhotosAvailable(false);
+    } finally {
+      setLoading(false);
+    }
+  }, [lastRequestTime, retryCount, onPhotosAvailable]);
 
   React.useEffect(() => {
-    const checkReceptionPhotos = async () => {
-      try {
-        const API_KEY = 'AIzaSyBNn-27uk3XXKmsj8PtZJwWc7ZBcz-ouRo';
-        const FOLDER_ID = '1W3_aUFcDsB8HRodZ7_dZPDsqQ3zM81sY';
-        const response = await fetch(
-          `https://www.googleapis.com/drive/v3/files?q='${FOLDER_ID}'+in+parents+and+mimeType+contains+'image/'&fields=files(id,name)&key=${API_KEY}`
-        );
-        const data = await response.json();
-        const hasPhotos = data.files && data.files.length > 0;
-        setPhotos(data.files || []);
-        onPhotosAvailable(hasPhotos);
-      } catch (error) {
-        console.error('Error checking reception photos:', error);
-        onPhotosAvailable(false);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    checkReceptionPhotos();
-  }, [onPhotosAvailable]);
+    addToRequestQueue(() => checkReceptionPhotos());
+  }, [checkReceptionPhotos]);
 
   if (loading) {
     return (
