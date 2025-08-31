@@ -157,7 +157,7 @@ const WeddingGalleryWithView: React.FC<{ onPhotosAvailable: (hasPhotos: boolean)
       const API_KEY = 'AIzaSyBNn-27uk3XXKmsj8PtZJwWc7ZBcz-ouRo';
       const FOLDER_ID = '1RE_611tbYddCK2uQoTDKl3KSY85RLbTU';
       const response = await fetch(
-        `https://www.googleapis.com/drive/v3/files?q='${FOLDER_ID}'+in+parents+and+mimeType+contains+'image/'&fields=files(id,name,webViewLink,webContentLink,thumbnailLink)&key=${API_KEY}`
+        `https://www.googleapis.com/drive/v3/files?q='${FOLDER_ID}'+in+parents+and+mimeType+contains+'image/'&fields=files(id,name,webViewLink)&key=${API_KEY}`
       );
       
       setLastRequestTime(Date.now());
@@ -214,7 +214,7 @@ const WeddingGalleryWithView: React.FC<{ onPhotosAvailable: (hasPhotos: boolean)
 
   const formattedPhotos = photos.map((photo, index) => ({
     id: index + 1,
-    src: `https://drive.google.com/thumbnail?id=${photo.id}`,
+    src: `https://drive.google.com/uc?id=${photo.id}`,
     alt: photo.name,
     name: photo.name,
     fullSrc: `https://drive.google.com/uc?export=view&id=${photo.id}`
