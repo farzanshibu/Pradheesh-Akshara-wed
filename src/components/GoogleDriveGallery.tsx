@@ -36,6 +36,7 @@ const GoogleDriveGallery: React.FC<GoogleDriveGalleryProps> = ({
   const [loadedImages, setLoadedImages] = useState<Record<string, boolean>>({});
   const [retryCount, setRetryCount] = useState(0);
   const [lastRequestTime, setLastRequestTime] = useState(0);
+  const [openDownloadIndex, setOpenDownloadIndex] = useState<string | null>(null);
 
   // Google Drive API configuration
   const API_KEY = 'AIzaSyBNn-27uk3XXKmsj8PtZJwWc7ZBcz-ouRo';
@@ -139,19 +140,19 @@ const GoogleDriveGallery: React.FC<GoogleDriveGalleryProps> = ({
     try {
       // Use the full image URL for download
       const downloadUrl = getFullImageUrl(image);
-      
-      // Create a temporary anchor element and trigger download
-      const link = document.createElement('a');
-      link.href = downloadUrl;
-      link.download = image.name || `wedding-photo-${image.id}.jpg`;
-      link.target = '_blank'; // Open in new tab to handle any authentication if needed
-      
-      // Add to DOM, click, and remove
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      
-      // Provide user feedback
+
+      // Try to fetch the file as a blob (better UX than opening in a new tab)
+      const res = await fetch(downloadUrl);
+      if (!res.ok) throw new Error('Download failed');
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = image.name || `wedding-photo-${image.id}.jpg`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
       console.log('Download initiated for:', image.name);
       
     } catch (error) {
@@ -166,6 +167,31 @@ const GoogleDriveGallery: React.FC<GoogleDriveGalleryProps> = ({
         console.error('Fallback also failed:', fallbackError);
         alert('Download failed. Please try refreshing the page or contact support.');
       }
+    }
+  };
+
+  // Prefer explicit Drive download using webContentLink when available
+  const downloadFromDrive = async (image: DriveImage) => {
+    try {
+      // Prefer explicit webContentLink when available, otherwise use uc?id=...&export=download
+      const downloadUrl = image.webContentLink || `https://drive.google.com/uc?id=${image.id}&export=download`;
+      const res = await fetch(downloadUrl);
+      if (!res.ok) throw new Error('Drive download failed');
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = image.name || `wedding-photo-${image.id}.jpg`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+      console.log('Drive download initiated for:', image.name);
+    } catch (err) {
+      console.error('Drive download failed, opening in new tab', err);
+      // Open the drive file view as a last resort
+      window.open(image.webContentLink || `https://drive.google.com/file/d/${image.id}/view`, '_blank');
+      alert('Unable to download directly from Drive. The file was opened in a new tab for manual download.');
     }
   };
 
@@ -310,16 +336,44 @@ const GoogleDriveGallery: React.FC<GoogleDriveGalleryProps> = ({
               
               {/* Action buttons overlay */}
               <div className="absolute top-2 right-2 flex space-x-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    downloadImage(image);
-                  }}
-                  className="p-2 bg-white/90 hover:bg-white rounded-full shadow-md transition-colors"
-                  title="Download Photo"
-                >
-                  <Download className="h-4 w-4 text-gray-700" />
-                </button>
+                <div className="relative">
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setOpenDownloadIndex(prev => prev === image.id ? null : image.id);
+                    }}
+                    className="p-2 bg-white/90 hover:bg-white rounded-full shadow-md transition-colors"
+                    title="Download Options"
+                  >
+                    <Download className="h-4 w-4 text-gray-700" />
+                  </button>
+
+                  {openDownloadIndex === image.id && (
+                    <div
+                      onClick={(e) => e.stopPropagation()}
+                      className="absolute right-0 mt-2 w-44 bg-white rounded-lg shadow-lg z-20 overflow-hidden"
+                    >
+                      <button
+                        onClick={async () => {
+                          setOpenDownloadIndex(null);
+                          await downloadFromDrive(image);
+                        }}
+                        className="w-full text-left px-3 py-2 hover:bg-gray-100 border-b"
+                      >
+                        Download original (Drive)
+                      </button>
+                      <button
+                        onClick={async () => {
+                          setOpenDownloadIndex(null);
+                          await downloadImage(image);
+                        }}
+                        className="w-full text-left px-3 py-2 hover:bg-gray-100"
+                      >
+                        Download display image
+                      </button>
+                    </div>
+                  )}
+                </div>
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
