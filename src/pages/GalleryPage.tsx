@@ -3,12 +3,108 @@ import { motion } from 'framer-motion';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
 import GoogleDriveGallery from '../components/GoogleDriveGallery';
-import { Share2, DownloadCloud } from 'lucide-react';
+import { Share2, DownloadCloud, Eye, X, ChevronLeft, ChevronRight } from 'lucide-react';
 
-// Wrapper component for Wedding Gallery
-const WeddingGallery: React.FC<{ onPhotosAvailable: (hasPhotos: boolean) => void }> = ({ onPhotosAvailable }) => {
+// Enhanced Image Modal Component with Gallery Navigation
+const ImageModal: React.FC<{
+  isOpen: boolean;
+  onClose: () => void;
+  photos: Array<{ id: number; src: string; alt: string; name?: string }>;
+  selectedIndex: number;
+  onNavigate: (index: number) => void;
+}> = ({ isOpen, onClose, photos, selectedIndex, onNavigate }) => {
+  if (!isOpen || selectedIndex === null) return null;
+
+  const currentPhoto = photos[selectedIndex];
+  
+  const nextImage = () => {
+    onNavigate((selectedIndex + 1) % photos.length);
+  };
+
+  const prevImage = () => {
+    onNavigate(selectedIndex === 0 ? photos.length - 1 : selectedIndex - 1);
+  };
+
+  // Keyboard navigation
+  React.useEffect(() => {
+    const handleKeyPress = (e: KeyboardEvent) => {
+      if (e.key === 'ArrowRight') nextImage();
+      if (e.key === 'ArrowLeft') prevImage();
+      if (e.key === 'Escape') onClose();
+    };
+
+    if (isOpen) {
+      document.addEventListener('keydown', handleKeyPress);
+      return () => document.removeEventListener('keydown', handleKeyPress);
+    }
+  }, [isOpen, selectedIndex]);
+
+  return (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      className="fixed inset-0 z-50 bg-black/90 backdrop-blur-sm flex items-center justify-center p-2 md:p-4"
+      onClick={onClose}
+    >
+      <motion.div
+        initial={{ scale: 0.9, opacity: 0 }}
+        animate={{ scale: 1, opacity: 1 }}
+        exit={{ scale: 0.9, opacity: 0 }}
+        className="relative max-w-4xl max-h-full"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Close Button */}
+        <button
+          onClick={onClose}
+          className="absolute top-2 right-2 md:top-4 md:right-4 z-10 p-2 bg-white/20 backdrop-blur-sm rounded-full text-white hover:bg-white/30 transition-colors"
+        >
+          <X className="h-6 w-6" />
+        </button>
+
+        {/* Navigation Buttons */}
+        {photos.length > 1 && (
+          <>
+            <button
+              onClick={prevImage}
+              className="absolute left-2 md:left-4 top-1/2 -translate-y-1/2 z-10 p-2 bg-white/20 backdrop-blur-sm rounded-full text-white hover:bg-white/30 transition-colors"
+            >
+              <ChevronLeft className="h-8 w-8" />
+            </button>
+            
+            <button
+              onClick={nextImage}
+              className="absolute right-2 md:right-4 top-1/2 -translate-y-1/2 z-10 p-2 bg-white/20 backdrop-blur-sm rounded-full text-white hover:bg-white/30 transition-colors"
+            >
+              <ChevronRight className="h-8 w-8" />
+            </button>
+          </>
+        )}
+
+        {/* Image Container */}
+        <div className="rounded-xl md:rounded-2xl overflow-hidden max-h-[80vh] max-w-full">
+          <img
+            src={currentPhoto.src}
+            alt={currentPhoto.alt}
+            className="w-full h-full object-contain"
+          />
+        </div>
+        
+        {/* Photo Info */}
+        <div className="absolute bottom-4 left-4 right-4 bg-black/50 backdrop-blur-sm rounded-lg p-3 text-white text-center">
+          <p className="text-sm md:text-base font-medium">{currentPhoto.name || currentPhoto.alt}</p>
+          <p className="text-xs text-gray-300 mt-1">{selectedIndex + 1} of {photos.length}</p>
+        </div>
+      </motion.div>
+    </motion.div>
+  );
+};
+
+// Enhanced Wedding Gallery with View Image functionality
+const WeddingGalleryWithView: React.FC<{ onPhotosAvailable: (hasPhotos: boolean) => void }> = ({ onPhotosAvailable }) => {
   const [photos, setPhotos] = React.useState<any[]>([]);
   const [loading, setLoading] = React.useState(true);
+  const [selectedImageIndex, setSelectedImageIndex] = React.useState<number | null>(null);
 
   React.useEffect(() => {
     const checkWeddingPhotos = async () => {
@@ -16,7 +112,7 @@ const WeddingGallery: React.FC<{ onPhotosAvailable: (hasPhotos: boolean) => void
         const API_KEY = 'AIzaSyBNn-27uk3XXKmsj8PtZJwWc7ZBcz-ouRo';
         const FOLDER_ID = '1RE_611tbYddCK2uQoTDKl3KSY85RLbTU';
         const response = await fetch(
-          `https://www.googleapis.com/drive/v3/files?q='${FOLDER_ID}'+in+parents+and+mimeType+contains+'image/'&fields=files(id,name)&key=${API_KEY}`
+          `https://www.googleapis.com/drive/v3/files?q='${FOLDER_ID}'+in+parents+and+mimeType+contains+'image/'&fields=files(id,name,webViewLink,thumbnailLink)&key=${API_KEY}`
         );
         const data = await response.json();
         const hasPhotos = data.files && data.files.length > 0;
@@ -33,18 +129,81 @@ const WeddingGallery: React.FC<{ onPhotosAvailable: (hasPhotos: boolean) => void
     checkWeddingPhotos();
   }, [onPhotosAvailable]);
 
-  if (loading || photos.length === 0) return null;
+  if (loading) {
+    return (
+      <div className="mb-8 p-6 rounded-lg bg-gradient-to-r from-purple-50 to-pink-50 text-center">
+        <div className="animate-pulse">
+          <div className="h-6 bg-purple-200 rounded w-48 mx-auto mb-2"></div>
+          <div className="h-4 bg-purple-100 rounded w-64 mx-auto"></div>
+        </div>
+      </div>
+    );
+  }
+
+  if (photos.length === 0) return null;
+
+  const formattedPhotos = photos.map((photo, index) => ({
+    id: index + 1,
+    src: `https://drive.google.com/uc?id=${photo.id}`,
+    alt: photo.name,
+    name: photo.name
+  }));
 
   return (
-    <GoogleDriveGallery
-      className="mb-8"
-      folderId="1RE_611tbYddCK2uQoTDKl3KSY85RLbTU"
-      title="Live Wedding Gallery"
-      description="Fresh photos from our special day!"
-      gradientFrom="purple-500"
-      gradientTo="pink-500"
-      textColor="text-purple-700"
-    />
+    <>
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="mb-8 p-6 rounded-lg bg-gradient-to-r from-purple-50 to-pink-50"
+      >
+        <h3 className="text-2xl font-bold mb-2 text-center">
+          <span className="inline-block px-3 py-1 rounded-lg bg-gradient-to-r from-purple-500 to-pink-500 text-white">
+            Live Wedding Gallery
+          </span>
+        </h3>
+        <p className="text-purple-700 text-center mb-6">Fresh photos from our special day!</p>
+        
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-4">
+          {formattedPhotos.map((photo, index) => (
+            <motion.div
+              key={photo.id}
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ duration: 0.5, delay: index * 0.1 }}
+              className="group cursor-pointer"
+              onClick={() => setSelectedImageIndex(index)}
+              whileHover={{ scale: 1.03 }}
+              whileTap={{ scale: 0.97 }}
+            >
+              <div className="relative overflow-hidden rounded-xl shadow-lg aspect-square bg-gray-100">
+                <img
+                  src={photo.src}
+                  alt={photo.alt}
+                  className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                
+                {/* Hover Overlay */}
+                <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-300">
+                  <div className="bg-white/90 hover:bg-white px-4 py-2 rounded-full flex items-center space-x-2 text-sm shadow-lg">
+                    <Eye className="h-4 w-4 text-gray-700" />
+                    <span className="text-gray-700 font-medium">View Image</span>
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+          ))}
+        </div>
+      </motion.div>
+
+      <ImageModal
+        isOpen={selectedImageIndex !== null}
+        onClose={() => setSelectedImageIndex(null)}
+        photos={formattedPhotos}
+        selectedIndex={selectedImageIndex || 0}
+        onNavigate={setSelectedImageIndex}
+      />
+    </>
   );
 };
 
@@ -76,7 +235,18 @@ const ReceptionGallery: React.FC<{ onPhotosAvailable: (hasPhotos: boolean) => vo
     checkReceptionPhotos();
   }, [onPhotosAvailable]);
 
-  if (loading || photos.length === 0) return null;
+  if (loading) {
+    return (
+      <div className="mb-8 p-6 rounded-lg bg-gradient-to-r from-emerald-50 to-green-50 text-center">
+        <div className="animate-pulse">
+          <div className="h-6 bg-emerald-200 rounded w-48 mx-auto mb-2"></div>
+          <div className="h-4 bg-emerald-100 rounded w-64 mx-auto"></div>
+        </div>
+      </div>
+    );
+  }
+
+  if (photos.length === 0) return null;
 
   return (
     <GoogleDriveGallery
@@ -93,8 +263,8 @@ const ReceptionGallery: React.FC<{ onPhotosAvailable: (hasPhotos: boolean) => vo
 
 // Grid that shows only the "now" photos (01..20) and a per-photo share button
 const NowPhotosGrid: React.FC = () => {
-  const [hasWeddingPhotos, setHasWeddingPhotos] = React.useState(false);
-  const [hasReceptionPhotos, setHasReceptionPhotos] = React.useState(false);
+  const [hasWeddingPhotos, setHasWeddingPhotos] = React.useState<boolean | null>(null);
+  const [hasReceptionPhotos, setHasReceptionPhotos] = React.useState<boolean | null>(null);
   
   // load assets via Vite glob
   const assets = import.meta.glob('../assets/*.{jpg,jpeg,png,webp}', { as: 'url', eager: true }) as Record<string, string>;
@@ -187,91 +357,109 @@ const NowPhotosGrid: React.FC = () => {
 
   return (
     <div>
-      {/* Wedding Photos Coming Soon (hide when photos are available) */}
-      <motion.div 
-        initial={{ opacity: 0, y: 6 }} 
-        animate={{ opacity: hasWeddingPhotos ? 0 : 1, y: 0 }} 
-        className={`mb-6 p-6 rounded-lg bg-gradient-to-r from-yellow-50 to-amber-50 text-center border border-dashed border-gray-200 transition-opacity duration-500 ${
-          hasWeddingPhotos ? 'hidden' : 'block'
-        }`}
-      >
-        <h4 className="text-xl font-semibold mb-2 inline-block px-3 py-1 rounded-lg bg-gradient-to-r from-pink-500 to-rose-500 text-white">Wedding Photos — Coming Soon</h4>
-        <p className="text-rose-700 mt-3">Live uploads and the complete wedding gallery will appear here on the wedding day.</p>
+      {/* Wedding Photos Coming Soon (hide when photos are available, show loading state initially) */}
+      {hasWeddingPhotos === null ? (
+        <motion.div 
+          initial={{ opacity: 0, y: 6 }} 
+          animate={{ opacity: 1, y: 0 }} 
+          className="mb-6 p-6 rounded-lg bg-gradient-to-r from-yellow-50 to-amber-50 text-center border border-dashed border-gray-200"
+        >
+          <div className="animate-pulse">
+            <div className="h-6 bg-yellow-200 rounded w-48 mx-auto mb-2"></div>
+            <div className="h-4 bg-yellow-100 rounded w-64 mx-auto"></div>
+          </div>
+        </motion.div>
+      ) : hasWeddingPhotos === false ? (
+        <motion.div 
+          initial={{ opacity: 0, y: 6 }} 
+          animate={{ opacity: 1, y: 0 }} 
+          className="mb-6 p-6 rounded-lg bg-gradient-to-r from-yellow-50 to-amber-50 text-center border border-dashed border-gray-200"
+        >
+          <h4 className="text-xl font-semibold mb-2 inline-block px-3 py-1 rounded-lg bg-gradient-to-r from-pink-500 to-rose-500 text-white">Wedding Photos — Coming Soon</h4>
+          <p className="text-rose-700 mt-3">Live uploads and the complete wedding gallery will appear here on the wedding day.</p>
 
-        {/* Wedding countdown */}
-        <div className="mt-4 flex items-center justify-center space-x-3">
-          {weddingLeft.days > 0 || weddingLeft.hours > 0 || weddingLeft.minutes > 0 || weddingLeft.seconds > 0 ? (
-            [{label: 'Days', value: weddingLeft.days}, {label: 'Hours', value: weddingLeft.hours}, {label: 'Minutes', value: weddingLeft.minutes}, {label: 'Seconds', value: weddingLeft.seconds}].map((it) => (
-              <div key={it.label} className="bg-white/90 text-rose-700 px-3 py-2 rounded-md shadow-sm">
-                <div className="font-bold text-lg">{String(it.value).padStart(2, '0')}</div>
-                <div className="text-xs">{it.label}</div>
+          {/* Wedding countdown */}
+          <div className="mt-4 flex items-center justify-center space-x-3">
+            {weddingLeft.days > 0 || weddingLeft.hours > 0 || weddingLeft.minutes > 0 || weddingLeft.seconds > 0 ? (
+              [{label: 'Days', value: weddingLeft.days}, {label: 'Hours', value: weddingLeft.hours}, {label: 'Minutes', value: weddingLeft.minutes}, {label: 'Seconds', value: weddingLeft.seconds}].map((it) => (
+                <div key={it.label} className="bg-white/90 text-rose-700 px-3 py-2 rounded-md shadow-sm">
+                  <div className="font-bold text-lg">{String(it.value).padStart(2, '0')}</div>
+                  <div className="text-xs">{it.label}</div>
+                </div>
+              ))
+            ) : (
+              <div className="text-rose-700 font-semibold text-lg">
+                🎉 The Wedding Day is Here! 🎉
               </div>
-            ))
-          ) : (
-            <div className="text-rose-700 font-semibold text-lg">
-              🎉 The Wedding Day is Here! 🎉
-            </div>
-          )}
-        </div>
+            )}
+          </div>
 
-        {/* Wedding thumbnails (loading placeholders) */}
-        <div className="mt-4 flex justify-center space-x-3">
-          {weddingThumbs.map((src) => (
-            <div key={src} className="w-24 h-16 rounded overflow-hidden bg-gray-100 relative">
-              {!loaded[src] && <div className="absolute inset-0 bg-gray-200 animate-pulse" />}
-              <img
-                src={src}
-                alt="wedding thumb"
-                loading="lazy"
-                onLoad={() => handleLoad(src)}
-                className={`w-full h-full object-cover transition-opacity duration-300 ${loaded[src] ? 'opacity-100' : 'opacity-0'}`}
-              />
-            </div>
-          ))}
-        </div>
-      </motion.div>
+          {/* Wedding thumbnails (loading placeholders) */}
+          <div className="mt-4 flex justify-center space-x-3">
+            {weddingThumbs.map((src) => (
+              <div key={src} className="w-24 h-16 rounded overflow-hidden bg-gray-100 relative">
+                {!loaded[src] && <div className="absolute inset-0 bg-gray-200 animate-pulse" />}
+                <img
+                  src={src}
+                  alt="wedding thumb"
+                  loading="lazy"
+                  onLoad={() => handleLoad(src)}
+                  className={`w-full h-full object-cover transition-opacity duration-300 ${loaded[src] ? 'opacity-100' : 'opacity-0'}`}
+                />
+              </div>
+            ))}
+          </div>
+        </motion.div>
+      ) : null}
 
       {/* Wedding Gallery - shows when photos are available */}
-      <WeddingGallery onPhotosAvailable={setHasWeddingPhotos} />
+      <WeddingGalleryWithView onPhotosAvailable={setHasWeddingPhotos} />
 
-      {/* Reception section - hide timer when photos are available */}
-      <div className={`mb-8 text-center p-4 rounded-md bg-white/30 transition-opacity duration-500 ${
-        hasReceptionPhotos ? 'hidden' : 'block'
-      }`}>
-        <h3 className="text-xl font-semibold mb-2 inline-block px-3 py-1 rounded-md bg-gradient-to-r from-emerald-400 to-green-600 text-white">Reception</h3>
-        <p className="text-emerald-800 text-sm">Live uploads and the reception gallery will appear here during and after the reception.</p>
+      {/* Reception section - hide timer when photos are available, show loading state initially */}
+      {hasReceptionPhotos === null ? (
+        <div className="mb-8 text-center p-4 rounded-md bg-white/30">
+          <div className="animate-pulse">
+            <div className="h-6 bg-emerald-200 rounded w-32 mx-auto mb-2"></div>
+            <div className="h-4 bg-emerald-100 rounded w-48 mx-auto"></div>
+          </div>
+        </div>
+      ) : hasReceptionPhotos === false ? (
+        <div className="mb-8 text-center p-4 rounded-md bg-white/30">
+          <h3 className="text-xl font-semibold mb-2 inline-block px-3 py-1 rounded-md bg-gradient-to-r from-emerald-400 to-green-600 text-white">Reception</h3>
+          <p className="text-emerald-800 text-sm">Live uploads and the reception gallery will appear here during and after the reception.</p>
 
-        {/* Reception countdown */}
-        <div className="mt-4 flex items-center justify-center space-x-3">
-          {receptionLeft.days > 0 || receptionLeft.hours > 0 || receptionLeft.minutes > 0 || receptionLeft.seconds > 0 ? (
-            [{label: 'Days', value: receptionLeft.days}, {label: 'Hours', value: receptionLeft.hours}, {label: 'Minutes', value: receptionLeft.minutes}, {label: 'Seconds', value: receptionLeft.seconds}].map((it) => (
-              <div key={it.label} className="bg-white/90 text-emerald-800 px-3 py-2 rounded-md shadow-sm">
-                <div className="font-bold text-lg">{String(it.value).padStart(2, '0')}</div>
-                <div className="text-xs">{it.label}</div>
+          {/* Reception countdown */}
+          <div className="mt-4 flex items-center justify-center space-x-3">
+            {receptionLeft.days > 0 || receptionLeft.hours > 0 || receptionLeft.minutes > 0 || receptionLeft.seconds > 0 ? (
+              [{label: 'Days', value: receptionLeft.days}, {label: 'Hours', value: receptionLeft.hours}, {label: 'Minutes', value: receptionLeft.minutes}, {label: 'Seconds', value: receptionLeft.seconds}].map((it) => (
+                <div key={it.label} className="bg-white/90 text-emerald-800 px-3 py-2 rounded-md shadow-sm">
+                  <div className="font-bold text-lg">{String(it.value).padStart(2, '0')}</div>
+                  <div className="text-xs">{it.label}</div>
+                </div>
+              ))
+            ) : (
+              <div className="text-emerald-800 font-semibold text-lg">
+                🎉 Reception Time is Here! 🎉
               </div>
-            ))
-          ) : (
-            <div className="text-emerald-800 font-semibold text-lg">
-              🎉 Reception Time is Here! 🎉
-            </div>
-          )}
-        </div>
+            )}
+          </div>
 
-        <div className="mt-4 flex justify-center space-x-3">
-          {receptionThumbs.map((src) => (
-            <div key={src} className="w-24 h-16 rounded overflow-hidden bg-gray-100 relative">
-              {!loaded[src] && <div className="absolute inset-0 bg-gray-200 animate-pulse" />}
-              <img
-                src={src}
-                alt="reception thumb"
-                loading="lazy"
-                onLoad={() => handleLoad(src)}
-                className={`w-full h-full object-cover transition-opacity duration-300 ${loaded[src] ? 'opacity-100' : 'opacity-0'}`}
-              />
-            </div>
-          ))}
+          <div className="mt-4 flex justify-center space-x-3">
+            {receptionThumbs.map((src) => (
+              <div key={src} className="w-24 h-16 rounded overflow-hidden bg-gray-100 relative">
+                {!loaded[src] && <div className="absolute inset-0 bg-gray-200 animate-pulse" />}
+                <img
+                  src={src}
+                  alt="reception thumb"
+                  loading="lazy"
+                  onLoad={() => handleLoad(src)}
+                  className={`w-full h-full object-cover transition-opacity duration-300 ${loaded[src] ? 'opacity-100' : 'opacity-0'}`}
+                />
+              </div>
+            ))}
+          </div>
         </div>
-      </div>
+      ) : null}
 
       {/* Reception Gallery - shows when photos are available */}
       <ReceptionGallery onPhotosAvailable={setHasReceptionPhotos} />
@@ -285,7 +473,18 @@ const NowPhotosGrid: React.FC = () => {
         <div className="mb-6">
           <p className="text-orange-800 font-semibold mb-3">Time until our special day:</p>
           <div className="flex items-center justify-center space-x-3">
-        
+            {weddingLeft.days > 0 || weddingLeft.hours > 0 || weddingLeft.minutes > 0 || weddingLeft.seconds > 0 ? (
+              [{label: 'Days', value: weddingLeft.days}, {label: 'Hours', value: weddingLeft.hours}, {label: 'Minutes', value: weddingLeft.minutes}, {label: 'Seconds', value: weddingLeft.seconds}].map((it) => (
+                <div key={it.label} className="bg-white/90 text-orange-800 px-3 py-2 rounded-md shadow-sm">
+                  <div className="font-bold text-lg">{String(it.value).padStart(2, '0')}</div>
+                  <div className="text-xs">{it.label}</div>
+                </div>
+              ))
+            ) : (
+              <div className="text-orange-800 font-semibold text-lg">
+                🎉 The Wedding Day is Here! 🎉
+              </div>
+            )}
           </div>
         </div>
         
@@ -315,9 +514,7 @@ const NowPhotosGrid: React.FC = () => {
             }}
             className="inline-flex items-center space-x-2 px-4 py-2 bg-gradient-to-r from-emerald-500 to-green-500 text-white rounded-full shadow-md hover:brightness-105 transition"
           >
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-              <path fillRule="evenodd" d="M3 14a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zM7 7a1 1 0 012 0v3h2V7a1 1 0 112 0v3h1a1 1 0 011 1v4a2 2 0 01-2 2H6a2 2 0 01-2-2v-4a1 1 0 011-1h1V7z" clipRule="evenodd" />
-            </svg>
+            <DownloadCloud className="h-5 w-5" />
             <span>Download All</span>
           </button>
         </div>
@@ -348,11 +545,6 @@ const NowPhotosGrid: React.FC = () => {
           </div>
         ))}
       </div>
-      {/* Coming Soon section for wedding photos */}
-      <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="mt-12 p-8 rounded-lg bg-white/60 text-center border border-dashed border-gray-200">
-        <h4 className="text-xl font-semibold mb-2">Wedding Photos — Coming Soon</h4>
-        <p className="text-gray-600">We're preparing the gallery. Check back on the wedding day for live uploads and more memories.</p>
-      </motion.div>
     </div>
   );
 };
